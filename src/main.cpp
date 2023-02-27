@@ -2,13 +2,8 @@
 #include <AutoConnect.h>
 #include <DS3231.h>
 #include <FastLED.h>
-
+#include <Pin_def.h>
 /*----------LED PARAM-----------*/
-#define NUM_LEDS 2
-#define LED_TYPE WS2812
-#define COLOR_ORDER GRB
-#define DATA_PIN 16
-#define LED_BRIGHTNESS 128
 
 WebServer Server;
 AutoConnect Portal(Server);
@@ -36,6 +31,15 @@ void setup()
 
   LEDS.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(LED_BRIGHTNESS);
+
+  pinMode(IR_PIN, INPUT_PULLUP);
+  pinMode(NUM_PIN_A, OUTPUT);
+  pinMode(NUM_PIN_B, OUTPUT);
+  pinMode(HV_ENABLE, OUTPUT);
+
+  digitalWrite(HV_ENABLE, HIGH);
+  digitalWrite(NUM_PIN_A, LOW);
+  digitalWrite(NUM_PIN_B, LOW);
 }
 
 void loop()
