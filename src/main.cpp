@@ -3,11 +3,14 @@
 #include <DS3231.h>
 #include <FastLED.h>
 #include <Pin_def.h>
+#include <IRremote.h>
 /*----------LED PARAM-----------*/
 
 WebServer Server;
 AutoConnect Portal(Server);
 AutoConnectConfig config;
+IRrecv irrecv(IR_PIN);
+decode_results ir_results;
 
 CRGB leds[NUM_LEDS];
 
@@ -37,16 +40,26 @@ void setup()
   pinMode(NUM_PIN_B, OUTPUT);
   pinMode(HV_ENABLE, OUTPUT);
 
-  digitalWrite(HV_ENABLE, HIGH);
+  digitalWrite(HV_ENABLE, HIGH); // 低电平有效
   digitalWrite(NUM_PIN_A, LOW);
   digitalWrite(NUM_PIN_B, LOW);
+
+  irrecv.enableIRIn();
 }
 
 void loop()
 {
   // put your main code here, to run repeatedly:
   Portal.handleClient();
-  fill_solid(leds, 2, CRGB::OrangeRed);
+  /* fill_solid(leds, 2, CRGB::OrangeRed);
   FastLED.show();
-  delay(25);
+  delay(25); */
+
+  if (irrecv.decode(&ir_results))
+  {
+    if (ir_results.value)
+    {
+    }
+    irrecv.resume();
+  }
 }

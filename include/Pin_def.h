@@ -7,11 +7,13 @@
 #define LED_BRIGHTNESS 128
 
 /*-------------Nixie---------------*/
+
 #define NUM_PIN_A 32
 #define NUM_PIN_B 33
 #define HV_ENABLE 25
 
 /*--------------IR-----------------*/
+
 #define IR_PIN 27
 
 /*-----------Sensor, RTC-----------*/
