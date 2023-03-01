@@ -4,7 +4,7 @@
 #include <FastLED.h>
 #include <Pin_def.h>
 #include <IRremote.h>
-/*----------LED PARAM-----------*/
+#include <NTPClient.h>
 
 WebServer Server;
 AutoConnect Portal(Server);
@@ -57,9 +57,11 @@ void loop()
 
   if (irrecv.decode(&ir_results))
   {
+    Serial.println(ir_results.value);
     if (ir_results.value)
     {
     }
     irrecv.resume();
   }
+  delay(50);
 }
