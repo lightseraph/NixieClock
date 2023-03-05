@@ -1,3 +1,10 @@
+#include <Arduino.h>
+#include <DS3231.h>
+#include <FastLED.h>
+#include <IRremoteESP8266.h>
+#include <IRrecv.h>
+#include <IRutils.h>
+
 /*---------------LED----------------*/
 
 #define NUM_LEDS 4

@@ -1,6 +1,0 @@
-{
-    "files.associations": {
-        "*.ino": "cpp",
-        "ws2812_led.h": "c"
-    }
-}

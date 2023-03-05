@@ -1,36 +1,20 @@
-#include <Arduino.h>
-#include <AutoConnect.h>
-#include <DS3231.h>
-#include <FastLED.h>
-#include <Pin_def.h>
-#include <IRremote.h>
-#include <NTPClient.h>
+#include <Hardware.h>
+#include <network.h>
 
-WebServer Server;
-AutoConnect Portal(Server);
-AutoConnectConfig config;
-IRrecv irrecv(IR_PIN);
-decode_results ir_results;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 28800, 86400000);
 
 CRGB leds[NUM_LEDS];
 
-void rootPage()
-{
-  char content[] = "Hello World";
-  Server.send(200, "text/plain", content);
-}
+IRrecv irrecv(IR_PIN);
+
+decode_results results;
 
 void setup()
 {
   // put your setup code here, to run once:
   delay(1000);
   Serial.begin(115200);
-  config.ota = AC_OTA_BUILTIN;
-  Portal.config(config);
-
-  Server.on("/", rootPage);
-  Portal.begin();
-  // Serial.println("Web server started: " + Wifi.localIP().toString());
 
   LEDS.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(LED_BRIGHTNESS);
@@ -44,24 +28,24 @@ void setup()
   digitalWrite(NUM_PIN_A, LOW);
   digitalWrite(NUM_PIN_B, LOW);
 
+  startWifiWithWebServer();
   irrecv.enableIRIn();
 }
 
 void loop()
 {
   // put your main code here, to run repeatedly:
-  Portal.handleClient();
+
   /* fill_solid(leds, 2, CRGB::OrangeRed);
   FastLED.show();
   delay(25); */
-
-  if (irrecv.decode(&ir_results))
+  if (irrecv.decode(&results))
   {
-    Serial.println(ir_results.value);
-    if (ir_results.value)
-    {
-    }
-    irrecv.resume();
+    // print() & println() can't handle printing long longs. (uint64_t)
+    serialPrintUint64(results.value, HEX);
+    Serial.println("");
+    irrecv.resume(); // Receive the next value
   }
+
   delay(50);
 }
