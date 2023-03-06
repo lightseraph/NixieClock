@@ -17,10 +17,10 @@
 
 #define NUM_PIN_A 32
 #define NUM_PIN_B 33
-#define HV_ENABLE 25
+#define HV_ENABLE 27
 
 /*--------------IR-----------------*/
 
-#define IR_PIN 27
+#define IR_PIN 25
 
 /*-----------Sensor, RTC-----------*/

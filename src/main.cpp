@@ -36,9 +36,9 @@ void loop()
 {
   // put your main code here, to run repeatedly:
 
-  /* fill_solid(leds, 2, CRGB::OrangeRed);
+  fill_solid(leds, 4, CRGB::OrangeRed);
   FastLED.show();
-  delay(25); */
+  delay(25);
   if (irrecv.decode(&results))
   {
     // print() & println() can't handle printing long longs. (uint64_t)
