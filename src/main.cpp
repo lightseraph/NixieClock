@@ -28,24 +28,37 @@ void setup()
   digitalWrite(NUM_PIN_A, LOW);
   digitalWrite(NUM_PIN_B, LOW);
 
-  startWifiWithWebServer();
+  // startWifiWithWebServer();
   irrecv.enableIRIn();
 }
-
+int i = 0;
 void loop()
 {
   // put your main code here, to run repeatedly:
 
-  fill_solid(leds, 4, CRGB::OrangeRed);
-  FastLED.show();
   delay(25);
   if (irrecv.decode(&results))
   {
     // print() & println() can't handle printing long longs. (uint64_t)
-    serialPrintUint64(results.value, HEX);
+    serialPrintUint64(results.command, HEX);
+
     Serial.println("");
+    leds[i] = CRGB::Black;
+    if (results.command == 0x40 && i != 3)
+    {
+      i++;
+    }
+    if (results.command == 0x44 && i > 0)
+    {
+      i--;
+    }
+    if (results.command == 0x45)
+      i = -1;
     irrecv.resume(); // Receive the next value
+    Serial.println(i);
   }
+  leds[i] = CRGB::Red;
+  FastLED.show();
 
   delay(50);
 }

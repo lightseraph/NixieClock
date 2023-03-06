@@ -11,7 +11,7 @@
 #define LED_TYPE WS2812
 #define COLOR_ORDER GRB
 #define DATA_PIN 26
-#define LED_BRIGHTNESS 128
+#define LED_BRIGHTNESS 40
 
 /*-------------Nixie---------------*/
 
