@@ -15,8 +15,8 @@
 
 /*-------------Nixie---------------*/
 
-#define NUM_PIN_A 34
-#define NUM_PIN_B 33
+#define NUM_PIN_A 18
+#define NUM_PIN_B 19
 #define HV_ENABLE 27
 
 /*--------------IR-----------------*/

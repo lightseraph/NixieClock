@@ -15,6 +15,9 @@ Preferences pref;
 CHSV color;
 
 void flash_led();
+void fade_off(int channel);
+void fade_on(int channel);
+void cross_fade(int in_channel, int out_channel);
 
 void setup()
 {
@@ -38,6 +41,11 @@ void setup()
   color.hue = pref.getUChar("hue", 0);
   color.sat = pref.getUChar("sat", 255);
   color.val = pref.getUChar("val", 255);
+
+  ledcSetup(8, 2000, 8);
+  ledcSetup(9, 2000, 8);
+  ledcAttachPin(NUM_PIN_A, 8);
+  ledcAttachPin(NUM_PIN_B, 9);
 
   // startWifiWithWebServer();
   irrecv.enableIRIn();
@@ -113,24 +121,29 @@ void loop()
       color.val = pref.getUChar("val", 255);
     }
     if (results.command == 0x4a) // 9 --- HV
-      digitalWrite(HV_ENABLE, ~digitalRead(HV_ENABLE));
-
+    {
+      digitalWrite(HV_ENABLE, !digitalRead(HV_ENABLE));
+      delay(20);
+    }
     if (results.command == 0x0C) // 1 ---
     {
-      digitalWrite(NUM_PIN_A, HIGH);
-      digitalWrite(NUM_PIN_B, LOW);
+      cross_fade(8, 9);
+
+      // digitalWrite(NUM_PIN_A, HIGH);
+      // digitalWrite(NUM_PIN_B, LOW);
     }
 
     if (results.command == 0x18) // 2 ---
     {
-      digitalWrite(NUM_PIN_A, LOW);
-      digitalWrite(NUM_PIN_B, HIGH);
+      cross_fade(9, 8);
+      // digitalWrite(NUM_PIN_A, LOW);
+      // digitalWrite(NUM_PIN_B, HIGH);
     }
 
     if (results.command == 0x16) // 0 ---
     {
-      digitalWrite(NUM_PIN_A, LOW);
-      digitalWrite(NUM_PIN_B, LOW);
+      fade_off(8);
+      fade_off(9);
     }
 
     fill_solid(leds, 4, CRGB::Black);
@@ -169,5 +182,33 @@ void flash_led()
     fill_solid(leds, 4, color);
     FastLED.show();
     delay(50);
+  }
+}
+
+void fade_off(int channel)
+{
+  for (int i = ledcRead(channel); i != 0; i--)
+  {
+    ledcWrite(channel, i);
+    delay(4);
+  }
+}
+
+void fade_on(int channel)
+{
+  for (int i = ledcRead(channel); i != 255; i++)
+  {
+    ledcWrite(channel, i);
+    delay(4);
+  }
+}
+
+void cross_fade(int in_channel, int out_channel)
+{
+  for (int i = ledcRead(in_channel), j = ledcRead(out_channel); i != 255; i++, j--)
+  {
+    ledcWrite(in_channel, i);
+    ledcWrite(out_channel, j);
+    delay(4);
   }
 }
