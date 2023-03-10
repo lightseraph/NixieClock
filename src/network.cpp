@@ -14,7 +14,7 @@ bool isFirmwareMode = false;
 
 static const char AUX_AppPage[] PROGMEM = R"(
 {
-  "title": "Welcome New",
+  "title": "Software info",
   "uri": "/",
   "menu": true,
   "element": [
@@ -27,7 +27,7 @@ static const char AUX_AppPage[] PROGMEM = R"(
     {
       "name": "content",
       "type": "ACText",
-      "value": "NixieClock based on IN-8 , Made By fishGan, updated"
+      "value": "NixieClock based on IN-8-2 , Modified By Light , rev 1"
     }
   ]
 }
@@ -37,13 +37,13 @@ void startWifiWithWebServer()
 {
   Serial.println("WebServer start!");
 
-  WiFi.mode(WIFI_MODE_APSTA);
+  // WiFi.mode(WIFI_MODE_APSTA);
   httpUpdater.setup(&httpServer);
   // Load a custom web page for a sketch and a dummy page for the updater.
   hello.load(AUX_AppPage);
   Portal.join({hello, update});
 
-  // Config.autoReconnect = true;
+  Config.autoReconnect = true;
   Config.immediateStart = true;
   Config.apid = DEFAULT_AP_SSID;
   Config.psk = DEFAULT_AP_PASSWORD;
@@ -52,8 +52,8 @@ void startWifiWithWebServer()
   Config.bootUri = AC_ONBOOTURI_ROOT;
   Portal.config(Config);
   Portal.begin();
-  while (true)
-    Portal.handleClient();
+  // while (true)
+  //  Portal.handleClient();
 }
 
 void startWifiWithoutWebServer()
