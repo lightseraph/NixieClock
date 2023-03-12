@@ -6,7 +6,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 28800, 86400000);
 
 CRGB leds[NUM_LEDS];
-
+extern AutoConnect Portal;
 IRrecv irrecv(IR_PIN);
 
 decode_results results;
@@ -40,10 +40,10 @@ void setup()
   pref.begin("pref");
   color.hue = pref.getUChar("hue", 0);
   color.sat = pref.getUChar("sat", 255);
-  color.val = pref.getUChar("val", 255);
+  color.val = pref.getUChar("val", 128);
 
-  ledcSetup(8, 2000, 8);
-  ledcSetup(9, 2000, 8);
+  ledcSetup(8, 1000, 8);
+  ledcSetup(9, 1000, 8);
   ledcAttachPin(NUM_PIN_A, 8);
   ledcAttachPin(NUM_PIN_B, 9);
 
@@ -52,7 +52,8 @@ void setup()
 }
 void loop()
 {
-  // put your main code here, to run repeatedly:
+  // Portal.handleClient();
+  //  put your main code here, to run repeatedly:
   static uint8_t work_status = 1;
 
   if (irrecv.decode(&results))

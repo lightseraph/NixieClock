@@ -14,7 +14,7 @@ bool isFirmwareMode = false;
 
 static const char AUX_AppPage[] PROGMEM = R"(
 {
-  "title": "Welcome New",
+  "title": "Software Info",
   "uri": "/",
   "menu": true,
   "element": [
@@ -27,7 +27,7 @@ static const char AUX_AppPage[] PROGMEM = R"(
     {
       "name": "content",
       "type": "ACText",
-      "value": "NixieClock based on IN-8 , Made By fishGan, updated"
+      "value": "NixieClock based on IN-8 , Modified By Light, Rev. 1"
     }
   ]
 }
@@ -52,8 +52,8 @@ void startWifiWithWebServer()
   Config.bootUri = AC_ONBOOTURI_ROOT;
   Portal.config(Config);
   Portal.begin();
-  while (true)
-    Portal.handleClient();
+  // while (true)
+  //   Portal.handleClient();
 }
 
 void startWifiWithoutWebServer()
