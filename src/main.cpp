@@ -4,7 +4,7 @@
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 28800, 86400000);
-
+extern AutoConnect Portal;
 CRGB leds[NUM_LEDS];
 extern AutoConnect Portal;
 IRrecv irrecv(IR_PIN);
@@ -22,7 +22,6 @@ void cross_fade(int in_channel, int out_channel);
 void setup()
 {
   // put your setup code here, to run once:
-  delay(1000);
   Serial.begin(115200);
 
   LEDS.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
@@ -47,13 +46,13 @@ void setup()
   ledcAttachPin(NUM_PIN_A, 8);
   ledcAttachPin(NUM_PIN_B, 9);
 
-  // startWifiWithWebServer();
+  startWifiWithWebServer();
   irrecv.enableIRIn();
 }
 void loop()
 {
-  // Portal.handleClient();
-  //  put your main code here, to run repeatedly:
+  Portal.handleClient();
+  // put your main code here, to run repeatedly:
   static uint8_t work_status = 1;
 
   if (irrecv.decode(&results))

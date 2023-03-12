@@ -27,7 +27,7 @@ static const char AUX_AppPage[] PROGMEM = R"(
     {
       "name": "content",
       "type": "ACText",
-      "value": "NixieClock based on IN-8 , Modified By Light, Rev. 1"
+      "value": "NixieClock based on IN-8-2 , Modified By Light , rev 1"
     }
   ]
 }
@@ -37,13 +37,13 @@ void startWifiWithWebServer()
 {
   Serial.println("WebServer start!");
 
-  WiFi.mode(WIFI_MODE_APSTA);
+  // WiFi.mode(WIFI_MODE_APSTA);
   httpUpdater.setup(&httpServer);
   // Load a custom web page for a sketch and a dummy page for the updater.
   hello.load(AUX_AppPage);
   Portal.join({hello, update});
 
-  // Config.autoReconnect = true;
+  Config.autoReconnect = true;
   Config.immediateStart = true;
   Config.apid = DEFAULT_AP_SSID;
   Config.psk = DEFAULT_AP_PASSWORD;
@@ -53,7 +53,7 @@ void startWifiWithWebServer()
   Portal.config(Config);
   Portal.begin();
   // while (true)
-  //   Portal.handleClient();
+  //  Portal.handleClient();
 }
 
 void startWifiWithoutWebServer()
