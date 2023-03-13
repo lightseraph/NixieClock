@@ -27,7 +27,7 @@ static const char AUX_AppPage[] PROGMEM = R"(
     {
       "name": "content",
       "type": "ACText",
-      "value": "NixieClock based on IN-8-2 , Modified By Light , rev 1"
+      "value": "NixieClock based on IN-8-2 , Modified By Light , rev 2"
     }
   ]
 }
@@ -44,7 +44,7 @@ void startWifiWithWebServer()
   Portal.join({hello, update});
 
   Config.autoReconnect = true;
-  Config.immediateStart = true;
+  Config.immediateStart = false;
   Config.apid = DEFAULT_AP_SSID;
   Config.psk = DEFAULT_AP_PASSWORD;
   Config.hostName = HOST_NAME;

@@ -13,11 +13,13 @@ decode_results results;
 Preferences pref;
 
 CHSV color;
+hw_timer_t *timer = NULL;
 
 void flash_led();
 void fade_off(int channel);
 void fade_on(int channel);
 void cross_fade(int in_channel, int out_channel);
+void IRAM_ATTR onTimer();
 
 void setup()
 {
@@ -41,13 +43,19 @@ void setup()
   color.sat = pref.getUChar("sat", 255);
   color.val = pref.getUChar("val", 128);
 
-  ledcSetup(8, 1000, 8);
-  ledcSetup(9, 1000, 8);
+  ledcSetup(8, 500, 8);
+  ledcSetup(9, 500, 8);
   ledcAttachPin(NUM_PIN_A, 8);
   ledcAttachPin(NUM_PIN_B, 9);
 
+  timer = timerBegin(1, 80, true);
+  timerAttachInterrupt(timer, onTimer, true);
+  timerAlarmWrite(timer, 5000000, true);
+  timerAlarmEnable(timer);
+
   startWifiWithWebServer();
   irrecv.enableIRIn();
+  flash_led();
 }
 void loop()
 {
@@ -136,6 +144,7 @@ void loop()
     if (results.command == 0x18) // 2 ---
     {
       cross_fade(9, 8);
+
       // digitalWrite(NUM_PIN_A, LOW);
       // digitalWrite(NUM_PIN_B, HIGH);
     }
@@ -210,5 +219,16 @@ void cross_fade(int in_channel, int out_channel)
     ledcWrite(in_channel, i);
     ledcWrite(out_channel, j);
     delay(4);
+  }
+}
+
+void IRAM_ATTR onTimer()
+{
+  if (digitalRead(HV_ENABLE) == HIGH)
+  {
+    if (ledcRead(8) == 0)
+      cross_fade(8, 9);
+    else
+      cross_fade(9, 8);
   }
 }
