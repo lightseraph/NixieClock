@@ -14,12 +14,18 @@ Preferences pref;
 
 CHSV color;
 hw_timer_t *timer = NULL;
+uint16_t counter = 0;
 
 void flash_led();
 void fade_off(int channel);
 void fade_on(int channel);
 void cross_fade(int in_channel, int out_channel);
-void IRAM_ATTR onTimer();
+
+void IRAM_ATTR onTimer()
+{
+  counter++;
+  // Serial.println(counter);
+}
 
 void setup()
 {
@@ -50,13 +56,13 @@ void setup()
 
   timer = timerBegin(1, 80, true);
   timerAttachInterrupt(timer, onTimer, true);
-  timerAlarmWrite(timer, 5000000, true);
-  timerAlarmEnable(timer);
+  timerAlarmWrite(timer, 100000, true);
 
   startWifiWithWebServer();
   irrecv.enableIRIn();
   flash_led();
 }
+
 void loop()
 {
   Portal.handleClient();
@@ -136,7 +142,8 @@ void loop()
     if (results.command == 0x0C) // 1 ---
     {
       cross_fade(8, 9);
-
+      counter = 0;
+      timerAlarmEnable(timer);
       // digitalWrite(NUM_PIN_A, HIGH);
       // digitalWrite(NUM_PIN_B, LOW);
     }
@@ -144,6 +151,8 @@ void loop()
     if (results.command == 0x18) // 2 ---
     {
       cross_fade(9, 8);
+      counter = 0;
+      timerAlarmEnable(timer);
 
       // digitalWrite(NUM_PIN_A, LOW);
       // digitalWrite(NUM_PIN_B, HIGH);
@@ -153,6 +162,7 @@ void loop()
     {
       fade_off(8);
       fade_off(9);
+      timerAlarmDisable(timer);
     }
 
     fill_solid(leds, 4, CRGB::Black);
@@ -175,10 +185,19 @@ void loop()
     break;
   }
 
+  if (counter > 50)
+  {
+    if (ledcRead(8) > 250)
+      cross_fade(9, 8);
+    else
+      cross_fade(8, 9);
+    counter = 0;
+  }
+
   fill_solid(leds, 4, color);
   FastLED.show();
 
-  delay(100);
+  delay(50);
 }
 
 void flash_led()
@@ -199,7 +218,7 @@ void fade_off(int channel)
   for (int i = ledcRead(channel); i != 0; i--)
   {
     ledcWrite(channel, i);
-    delay(4);
+    delay(3);
   }
 }
 
@@ -208,7 +227,7 @@ void fade_on(int channel)
   for (int i = ledcRead(channel); i != 255; i++)
   {
     ledcWrite(channel, i);
-    delay(4);
+    delay(3);
   }
 }
 
@@ -218,17 +237,6 @@ void cross_fade(int in_channel, int out_channel)
   {
     ledcWrite(in_channel, i);
     ledcWrite(out_channel, j);
-    delay(4);
-  }
-}
-
-void IRAM_ATTR onTimer()
-{
-  if (digitalRead(HV_ENABLE) == HIGH)
-  {
-    if (ledcRead(8) == 0)
-      cross_fade(8, 9);
-    else
-      cross_fade(9, 8);
+    delay(3);
   }
 }
