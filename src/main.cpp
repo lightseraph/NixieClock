@@ -143,16 +143,16 @@ void loop()
     {
       cross_fade(8, 9);
       counter = 0;
-      timerAlarmEnable(timer);
-      // digitalWrite(NUM_PIN_A, HIGH);
-      // digitalWrite(NUM_PIN_B, LOW);
+      // timerAlarmEnable(timer);
+      //  digitalWrite(NUM_PIN_A, HIGH);
+      //  digitalWrite(NUM_PIN_B, LOW);
     }
 
     if (results.command == 0x18) // 2 ---
     {
       cross_fade(9, 8);
       counter = 0;
-      timerAlarmEnable(timer);
+      // timerAlarmEnable(timer);
 
       // digitalWrite(NUM_PIN_A, LOW);
       // digitalWrite(NUM_PIN_B, HIGH);
@@ -162,7 +162,7 @@ void loop()
     {
       fade_off(8);
       fade_off(9);
-      timerAlarmDisable(timer);
+      // timerAlarmDisable(timer);
     }
 
     fill_solid(leds, 4, CRGB::Black);
@@ -185,14 +185,14 @@ void loop()
     break;
   }
 
-  if (counter > 50)
+  /* if (counter > 50)
   {
     if (ledcRead(8) > 250)
       cross_fade(9, 8);
     else
       cross_fade(8, 9);
     counter = 0;
-  }
+  } */
 
   fill_solid(leds, 4, color);
   FastLED.show();
