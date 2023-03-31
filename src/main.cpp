@@ -34,6 +34,8 @@ void setup()
 
   LEDS.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(LED_BRIGHTNESS);
+  fill_solid(leds, 4, CRGB::Black);
+  FastLED.show();
 
   pinMode(IR_PIN, INPUT_PULLUP);
   pinMode(NUM_PIN_A, OUTPUT);
