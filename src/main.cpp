@@ -5,26 +5,55 @@
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 28800, 86400000);
 extern AutoConnect Portal;
-CRGB leds[NUM_LEDS];
-extern AutoConnect Portal;
+extern CRGB leds[NUM_LEDS];
+extern CHSV color;
+
 IRrecv irrecv(IR_PIN);
 
 decode_results results;
 Preferences pref;
 
-CHSV color;
-hw_timer_t *timer = NULL;
-uint16_t counter = 0;
+hw_timer_t *timer_PWM = NULL;
+hw_timer_t *timer_fade = NULL;
+hw_timer_t *timer_incremental = NULL;
+uint8_t fade_pwm = 0;
+uint8_t fadein_num = 0;
+uint8_t fadeout_num = 0;
 
 void flash_led();
-void fade_off(int channel);
+/* void fade_off(int channel);
 void fade_on(int channel);
-void cross_fade(int in_channel, int out_channel);
+void cross_fade(int in_channel, int out_channel);  */
 
-void IRAM_ATTR onTimer()
+void IRAM_ATTR onTimer_PWM()
 {
+  static uint8_t counter = 0;
   counter++;
-  // Serial.println(counter);
+
+  if ((counter % 128) < fade_pwm)
+  {
+    calcNixieData(4, fadein_num);
+    displayNixie();
+  }
+  else
+  {
+    calcNixieData(4, fadeout_num);
+    displayNixie();
+  }
+}
+
+void IRAM_ATTR onTimer_Fade()
+{
+  fade_pwm++;
+}
+
+void IRAM_ATTR onTimer_incremental()
+{
+  fadein_num++;
+  fadein_num %= 10;
+  fade_pwm = 0;
+  timerAlarmEnable(timer_fade);
+  digitalWrite(DOT, !digitalRead(DOT));
 }
 
 void setup()
@@ -32,33 +61,40 @@ void setup()
   // put your setup code here, to run once:
   Serial.begin(115200);
 
-  LEDS.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
-  FastLED.setBrightness(LED_BRIGHTNESS);
-  fill_solid(leds, 4, CRGB::Black);
-  FastLED.show();
+  pinMode(IR_PIN, INPUT);
 
-  pinMode(IR_PIN, INPUT_PULLUP);
-  pinMode(NUM_PIN_A, OUTPUT);
-  pinMode(NUM_PIN_B, OUTPUT);
   pinMode(HV_ENABLE, OUTPUT);
+  pinMode(DOT, OUTPUT);
+  pinMode(IN2_COMMA, OUTPUT);
+  pinMode(IN3_COMMA, OUTPUT);
+  pinMode(SQW, INPUT_PULLUP);
 
-  digitalWrite(HV_ENABLE, HIGH); // 低电平有效
-  digitalWrite(NUM_PIN_A, LOW);
-  digitalWrite(NUM_PIN_B, LOW);
+  digitalWrite(HV_ENABLE, LOW); // 低电平有效
+  digitalWrite(DOT, HIGH);
+  digitalWrite(IN2_COMMA, LOW);
+  digitalWrite(IN3_COMMA, LOW);
 
   pref.begin("pref");
   color.hue = pref.getUChar("hue", 0);
   color.sat = pref.getUChar("sat", 255);
   color.val = pref.getUChar("val", 128);
 
-  ledcSetup(8, 500, 8);
-  ledcSetup(9, 500, 8);
-  ledcAttachPin(NUM_PIN_A, 8);
-  ledcAttachPin(NUM_PIN_B, 9);
+  initNixieDriver();
+  initLED();
 
-  timer = timerBegin(1, 80, true);
-  timerAttachInterrupt(timer, onTimer, true);
-  timerAlarmWrite(timer, 100000, true);
+  timer_PWM = timerBegin(1, 80, true);
+  timerAttachInterrupt(timer_PWM, onTimer_PWM, true);
+  timerAlarmWrite(timer_PWM, 30, true); // 30us
+  timerAlarmEnable(timer_PWM);
+
+  timer_fade = timerBegin(2, 80, true);
+  timerAttachInterrupt(timer_fade, onTimer_Fade, true);
+  timerAlarmWrite(timer_fade, 6000, true);
+
+  timer_incremental = timerBegin(0, 80, true);
+  timerAttachInterrupt(timer_incremental, onTimer_incremental, true);
+  timerAlarmWrite(timer_incremental, 1500000, true);
+  timerAlarmEnable(timer_incremental);
 
   startWifiWithWebServer();
   irrecv.enableIRIn();
@@ -69,7 +105,13 @@ void loop()
 {
   Portal.handleClient();
   // put your main code here, to run repeatedly:
-  static uint8_t work_status = 1;
+  if (fade_pwm > 128)
+  {
+    timerAlarmDisable(timer_fade);
+    fade_pwm = 128;
+    fadeout_num = fadein_num;
+  }
+  static uint8_t work_status = 2;
 
   if (irrecv.decode(&results))
   {
@@ -139,32 +181,44 @@ void loop()
     if (results.command == 0x4a) // 9 --- HV
     {
       digitalWrite(HV_ENABLE, !digitalRead(HV_ENABLE));
-      delay(20);
+      digitalWrite(DOT, !digitalRead(DOT));
+      delay(45);
     }
     if (results.command == 0x0C) // 1 ---
     {
-      cross_fade(8, 9);
-      counter = 0;
-      // timerAlarmEnable(timer);
-      //  digitalWrite(NUM_PIN_A, HIGH);
-      //  digitalWrite(NUM_PIN_B, LOW);
+      fadein_num = 1;
+      fade_pwm = 0;
+      timerAlarmEnable(timer_fade);
     }
 
     if (results.command == 0x18) // 2 ---
     {
-      cross_fade(9, 8);
-      counter = 0;
-      // timerAlarmEnable(timer);
+      fadein_num = 2;
+      fade_pwm = 0;
+      timerAlarmEnable(timer_fade);
+      /* calcNixieData(4, 2);
+      displayNixie(); */
+    }
 
-      // digitalWrite(NUM_PIN_A, LOW);
-      // digitalWrite(NUM_PIN_B, HIGH);
+    if (results.command == 0x5E) // 3 ---
+    {
+      fadein_num = 3;
+      fade_pwm = 0;
+      timerAlarmEnable(timer_fade);
+    }
+
+    if (results.command == 0x08) // 4 ---
+    {
+      fadein_num = 4;
+      fade_pwm = 0;
+      timerAlarmEnable(timer_fade);
     }
 
     if (results.command == 0x16) // 0 ---
     {
-      fade_off(8);
-      fade_off(9);
-      // timerAlarmDisable(timer);
+      // fade_off(8);
+      // fade_off(9);
+      //  timerAlarmDisable(timer);
     }
 
     fill_solid(leds, 4, CRGB::Black);
@@ -215,7 +269,7 @@ void flash_led()
   }
 }
 
-void fade_off(int channel)
+/* void fade_off(int channel)
 {
   for (int i = ledcRead(channel); i != 0; i--)
   {
@@ -241,4 +295,4 @@ void cross_fade(int in_channel, int out_channel)
     ledcWrite(out_channel, j);
     delay(3);
   }
-}
+} */
