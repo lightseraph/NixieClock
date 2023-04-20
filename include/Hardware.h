@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <DS3231.h>
+#include <RTClib.h>
 #include <FastLED.h>
 #include <IRremoteESP8266.h>
 #include <IRrecv.h>
@@ -33,7 +33,14 @@
 #define SCL 21
 #define SQW 16
 
+/*--------------PWM---------------*/
+#define PWM_PERIOD 16 // us
+#define FADE_STEP 255
+#define FADE_TIME 800.0      // ms
+#define SPI_RATE 9 * 1000000 // 9MHz
+
 void initNixieDriver();
 void calcNixieData(uint8_t digits, uint8_t num);
-void displayNixie();
+void displayNixie(uint8_t *digits);
 void initLED();
+void init_I2C();
