@@ -27,6 +27,7 @@
 /*--------------IR-----------------*/
 
 #define IR_PIN 23
+#define RADAR 13
 
 /*-----------Sensor, RTC-----------*/
 #define SDA 22

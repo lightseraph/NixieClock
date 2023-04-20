@@ -1,18 +1,19 @@
 #include <Hardware.h>
 #include <network.h>
 #include <Preferences.h>
+#include <global_var.h>
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 28800, 86400000);
 extern AutoConnect Portal;
 extern CRGB leds[NUM_LEDS];
-extern CHSV color;
+CHSV color;
 extern RTC_DS3231 rtc;
+Settings settings;
 
 IRrecv irrecv(IR_PIN);
 
 decode_results results;
-Preferences pref;
 
 hw_timer_t *timer_PWM = NULL;
 hw_timer_t *timer_fade = NULL;
@@ -85,15 +86,11 @@ void setup()
   digitalWrite(IN2_COMMA, LOW);
   digitalWrite(IN3_COMMA, LOW);
 
-  pref.begin("pref");
-  color.hue = pref.getUChar("hue", 0);
-  color.sat = pref.getUChar("sat", 255);
-  color.val = pref.getUChar("val", 128);
-
   initNixieDriver();
   initLED();
   init_I2C();
   attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
+  color = settings.getColor();
 
   timer_PWM = timerBegin(1, 80, true);
   timerAttachInterrupt(timer_PWM, onTimer_PWM, true);
@@ -132,10 +129,14 @@ void loop()
 
   if (flag)
   {
-    char date[10] = "hh:mm:ss";
+    char date[15] = "MM-dd hh:mm:ss";
     rtc.now().toString(date);
     Serial.println(date);
-    // Serial.println(rtc.getTemperature());
+
+    fadein_num[0] = date[6] - '0';
+    fadein_num[1] = date[7] - '0';
+    fadein_num[2] = date[9] - '0';
+    fadein_num[3] = date[10] - '0';
     flag = 0;
   }
 
@@ -165,9 +166,7 @@ void loop()
     }
     if (results.command == 0x09) // EQ
     {
-      pref.putUChar("hue", color.hue);
-      pref.putUChar("sat", color.sat);
-      pref.putUChar("val", color.val);
+      settings.putColor(color);
       flash_led();
     }
     if (results.command == 0x15) // ++++
@@ -200,9 +199,7 @@ void loop()
     }
     if (results.command == 0x46) // CH
     {
-      color.hue = pref.getUChar("hue", 0);
-      color.sat = pref.getUChar("sat", 255);
-      color.val = pref.getUChar("val", 255);
+      color = settings.getColor();
     }
     if (results.command == 0x4a) // 9 --- HV
     {

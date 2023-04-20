@@ -11,7 +11,7 @@ uint32_t nixieBitData_L = 0;
 uint64_t nixieBitData = 0;
 
 CRGB leds[NUM_LEDS];
-CHSV color;
+// CHSV color;
 
 RTC_DS3231 rtc;
 
