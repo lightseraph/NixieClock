@@ -8,7 +8,7 @@
 class Settings : public Preferences
 {
 public:
-    Settings();
+    void init();
 
     uint8_t open_hour;
     uint8_t open_minute;

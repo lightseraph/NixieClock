@@ -1,6 +1,6 @@
 #include <global_var.h>
 
-Settings::Settings()
+void Settings::init()
 {
     begin("pref");
     mColor.hue = getUChar("hue", 0);

@@ -89,6 +89,8 @@ void setup()
   initNixieDriver();
   initLED();
   init_I2C();
+  settings.init();
+
   attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
   color = settings.getColor();
 
@@ -294,7 +296,7 @@ void loop()
   fill_solid(leds, 4, color);
   FastLED.show();
 
-  delay(50);
+  delay(25);
 }
 
 void flash_led()
