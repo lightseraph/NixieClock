@@ -75,6 +75,8 @@ void setup()
   Serial.begin(115200);
 
   pinMode(IR_PIN, INPUT);
+  // pinMode(IR_PIN, INPUT_PULLUP);
+  // pinMode(RADAR, INPUT);
 
   pinMode(HV_ENABLE, OUTPUT);
   pinMode(DOT, OUTPUT);

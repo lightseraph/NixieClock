@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "Preferences.h"
 #include <FastLED.h>
+#include <RTClib.h>
 
 #define CLOSE_TIME 1
 #define OPEN_TIME 2
@@ -10,18 +11,16 @@ class Settings : public Preferences
 public:
     void init();
 
-    uint8_t open_hour;
-    uint8_t open_minute;
-    uint8_t close_hour;
-    uint8_t close_minute;
-    uint8_t updated_year;
-    uint8_t updated_day;
-    uint8_t updated_month;
-
     void putColor(CHSV color);
     CHSV getColor(void);
     void getTime(uint8_t *time, uint8_t on_off);
     void putTime(const uint8_t *time, uint8_t on_off);
+    void getDPTime(uint8_t *time);
+    void putDPTime(const uint8_t *time);
+    uint8_t getDisplayMode(void);
+    void putDisplayMode(uint8_t mode);
+    uint32_t getLastUpdate(void);
+    void putLastUpdate(uint32_t secondstime);
 
 private:
     CHSV mColor;
