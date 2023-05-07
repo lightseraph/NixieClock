@@ -40,6 +40,22 @@
 #define FADE_TIME 800.0      // ms
 #define SPI_RATE 9 * 1000000 // 9MHz
 
+#define TIME_UPDATE_INTERVAL 259200 // 3天
+
+typedef enum
+{
+    DISP_MIN_SEC,
+    DISP_HOUR_MIN,
+    DISP_MONTH,
+    DISP_YEARS,
+    DISP_TEMP,
+    DISP_HUMIDITY,
+    DISP_DP,
+    SET_NTP_UPDATE,
+    SET_OPEN_TIME,
+    SET_CLOSE_TIME
+} WORK_STATUS;
+
 void initNixieDriver();
 void calcNixieData(uint8_t digits, uint8_t num);
 void displayNixie(uint8_t *digits);

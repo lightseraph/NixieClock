@@ -2,6 +2,7 @@
 #include <network.h>
 #include <Preferences.h>
 #include <global_var.h>
+#include <time.h>
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 28800, 86400000);
@@ -22,6 +23,8 @@ uint16_t fade_pwm = 0;
 uint8_t fadein_num[4] = {0};
 uint8_t fadeout_num[4] = {0};
 uint8_t flag = 0;
+WORK_STATUS work_status;
+uint8_t set_hue; // 0:fixed, 1:increase, 2:decrease
 
 void flash_led();
 
@@ -43,6 +46,20 @@ void IRAM_ATTR onTimer_PWM()
 void IRAM_ATTR onTimer_Fade()
 {
   fade_pwm++;
+}
+
+void IRAM_ATTR onRADAR_ACT()
+{
+  if (digitalRead(RADAR) == HIGH)
+  {
+    if (digitalRead(HV_ENABLE) == HIGH)
+      digitalWrite(HV_ENABLE, LOW);
+  }
+  else
+  {
+    if (digitalRead(HV_ENABLE) == LOW)
+      digitalWrite(HV_ENABLE, HIGH);
+  }
 }
 
 void IRAM_ATTR onTimer_incremental()
@@ -94,6 +111,7 @@ void setup()
   settings.init();
 
   attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
+  // attachInterrupt(digitalPinToInterrupt(RADAR), onRADAR_ACT, CHANGE);
   color = settings.getColor();
 
   timer_PWM = timerBegin(1, 80, true);
@@ -113,6 +131,8 @@ void setup()
   startWifiWithWebServer();
   irrecv.enableIRIn();
   flash_led();
+  timeClient.begin();
+  set_hue = 0;
   Serial.println("hardware setup success!");
 }
 
@@ -129,7 +149,6 @@ void loop()
       fadeout_num[i] = fadein_num[i];
     }
   }
-  static uint8_t work_status = 2;
 
   if (flag)
   {
@@ -152,21 +171,20 @@ void loop()
     Serial.println("");
     if (results.command == 0x43) // play/pause
     {
-      work_status = 1;
     }
     if (results.command == 0x44) // prev
     {
-      if (work_status == 1)
-        work_status = 2;
+      if (set_hue == 0)
+        set_hue = 2;
       else
-        work_status = 1;
+        set_hue = 0;
     }
     if (results.command == 0x40) // next
     {
-      if (work_status == 1)
-        work_status = 3;
+      if (set_hue == 0)
+        set_hue = 1;
       else
-        work_status = 1;
+        set_hue = 0;
     }
     if (results.command == 0x09) // EQ
     {
@@ -272,17 +290,15 @@ void loop()
     irrecv.resume(); // Receive the next value
   }
 
-  switch (work_status)
+  switch (set_hue)
   {
   case 0:
     break;
   case 1:
+    color.hue++;
     break;
   case 2:
     color.hue--;
-    break;
-  case 3:
-    color.hue++;
     break;
   }
 

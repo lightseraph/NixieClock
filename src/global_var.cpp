@@ -71,19 +71,15 @@ void Settings::putTime(const uint8_t *time, uint8_t on_off)
 }
 
 // 读取阴级解毒间隔时间
-void Settings::getDPTime(uint8_t *time)
+uint8_t Settings::getDPTime(void)
 {
-    time[0] = getUChar("dp_time_h", 0) / 10;
-    time[1] = getUChar("dp_time_h", 0) % 10;
-    time[2] = getUChar("dp_time_m", 0) / 10;
-    time[3] = getUChar("dp_time_m", 0) % 10;
+    return getUChar("dp_time", 5);
 }
 
 // 设置阴级解毒间隔时间
-void Settings::putDPTime(const uint8_t *time)
+void Settings::putDPTime(const uint8_t interval)
 {
-    putUChar("dp_time_h", time[0] * 10 + time[1]);
-    putUChar("dp_time_m", time[2] * 10 + time[3]);
+    putUChar("dp_time", interval);
 }
 
 // 读取显示模式

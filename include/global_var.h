@@ -15,8 +15,8 @@ public:
     CHSV getColor(void);
     void getTime(uint8_t *time, uint8_t on_off);
     void putTime(const uint8_t *time, uint8_t on_off);
-    void getDPTime(uint8_t *time);
-    void putDPTime(const uint8_t *time);
+    uint8_t getDPTime(void);
+    void putDPTime(const uint8_t interval);
     uint8_t getDisplayMode(void);
     void putDisplayMode(uint8_t mode);
     uint32_t getLastUpdate(void);
