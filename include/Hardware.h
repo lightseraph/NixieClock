@@ -35,7 +35,7 @@
 #define SQW 16
 
 /*--------------PWM---------------*/
-#define PWM_PERIOD 16 // us
+#define PWM_PERIOD 20 // us
 #define FADE_STEP 255
 #define FADE_TIME 800.0      // ms
 #define SPI_RATE 9 * 1000000 // 9MHz

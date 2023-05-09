@@ -171,6 +171,11 @@ void loop()
     Serial.println("");
     if (results.command == 0x43) // play/pause
     {
+      timeClient.update();
+      Serial.println(timeClient.getFormattedTime());
+      DateTime dt(timeClient.getEpochTime());
+      rtc.adjust(dt);
+      flash_led();
     }
     if (results.command == 0x44) // prev
     {

@@ -44,6 +44,7 @@ void startWifiWithWebServer()
   Portal.join({hello, update});
 
   Config.autoReconnect = true;
+  Config.autoSave = AC_SAVECREDENTIAL_ALWAYS;
   Config.immediateStart = false;
   Config.apid = DEFAULT_AP_SSID;
   Config.psk = DEFAULT_AP_PASSWORD;
