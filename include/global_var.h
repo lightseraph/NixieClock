@@ -21,6 +21,7 @@ public:
     void putDisplayMode(uint8_t mode);
     uint32_t getLastUpdate(void);
     void putLastUpdate(uint32_t secondstime);
+    uint32_t mLastupdate;
 
 private:
     CHSV mColor;

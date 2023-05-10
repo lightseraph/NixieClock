@@ -16,6 +16,8 @@ void Settings::init()
     mOpen_time[1] = getUChar("o_h", 0) % 10;
     mOpen_time[2] = getUChar("o_m", 0) / 10;
     mOpen_time[3] = getUChar("o_m", 0) % 10;
+
+    mLastupdate = getUInt("last_update", 0);
 }
 
 // 设置LED灯色
@@ -99,11 +101,13 @@ void Settings::putDisplayMode(uint8_t mode)
 // 读取最后一次NTP更新时间
 uint32_t Settings::getLastUpdate(void)
 {
-    return getUInt("last_update", 0);
+    mLastupdate = getUInt("last_update", 0);
+    return mLastupdate;
 }
 
 // 设置最后一次NTP更新时间
 void Settings::putLastUpdate(uint32_t secondstime)
 {
     putUInt("last_update", secondstime);
+    mLastupdate = secondstime;
 }

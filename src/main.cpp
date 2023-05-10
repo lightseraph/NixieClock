@@ -25,8 +25,10 @@ uint8_t fadeout_num[4] = {0};
 uint8_t flag = 0;
 WORK_STATUS work_status;
 uint8_t set_hue; // 0:fixed, 1:increase, 2:decrease
+uint8_t dp_count = 0;
 
 void flash_led();
+void updateRTC();
 
 void IRAM_ATTR onTimer_PWM()
 {
@@ -69,16 +71,18 @@ void IRAM_ATTR onTimer_incremental()
     fadein_num[i]++;
     fadein_num[i] %= 10;
   }
-  flag = 1;
+  fade_pwm = 256;
+  flag = 0;
+  dp_count++;
 }
 
 void IRAM_ATTR onSQW()
 {
-  for (int i = 0; i < 4; i++)
+  /* for (int i = 0; i < 4; i++)
   {
     fadein_num[i]++;
     fadein_num[i] %= 10;
-  }
+  } */
   fade_pwm = 0;
   timerAlarmEnable(timer_fade);
   digitalWrite(DOT, !digitalRead(DOT));
@@ -117,7 +121,6 @@ void setup()
   timer_PWM = timerBegin(1, 80, true);
   timerAttachInterrupt(timer_PWM, onTimer_PWM, true);
   timerAlarmWrite(timer_PWM, PWM_PERIOD, true); // PWM周期 20us
-  timerAlarmEnable(timer_PWM);
 
   timer_fade = timerBegin(2, 80, true);
   timerAttachInterrupt(timer_fade, onTimer_Fade, true);
@@ -130,9 +133,10 @@ void setup()
 
   startWifiWithWebServer();
   irrecv.enableIRIn();
-  flash_led();
   timeClient.begin();
   set_hue = 0;
+  timerAlarmEnable(timer_PWM);
+  flash_led();
   Serial.println("hardware setup success!");
 }
 
@@ -150,16 +154,28 @@ void loop()
     }
   }
 
+  if (rtc.now().unixtime() - settings.mLastupdate > TIME_UPDATE_INTERVAL)
+  {
+    updateRTC();
+  }
+
+  if (dp_count > 10)
+  {
+    timerAlarmDisable(timer_incremental);
+    attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
+    dp_count = 0;
+  }
+
   if (flag)
   {
-    char date[15] = "MM-dd hh:mm:ss";
+    char date[15] = "MM-DD hh:mm:ss";
     rtc.now().toString(date);
     Serial.println(date);
 
     fadein_num[0] = date[6] - '0';
     fadein_num[1] = date[7] - '0';
-    fadein_num[2] = date[9] - '0';
-    fadein_num[3] = date[10] - '0';
+    fadein_num[3] = date[12] - '0';
+    fadein_num[2] = date[13] - '0';
     flag = 0;
   }
 
@@ -171,10 +187,7 @@ void loop()
     Serial.println("");
     if (results.command == 0x43) // play/pause
     {
-      timeClient.update();
-      Serial.println(timeClient.getFormattedTime());
-      DateTime dt(timeClient.getEpochTime());
-      rtc.adjust(dt);
+      updateRTC();
       flash_led();
     }
     if (results.command == 0x44) // prev
@@ -232,7 +245,7 @@ void loop()
     {
       digitalWrite(HV_ENABLE, !digitalRead(HV_ENABLE));
       digitalWrite(DOT, !digitalRead(DOT));
-      delay(45);
+      // delay(45);
     }
     if (results.command == 0x0C) // 1 ---
     {
@@ -276,17 +289,9 @@ void loop()
 
     if (results.command == 0x16) // 0 ---
     {
-      if (timerAlarmEnabled(timer_incremental))
-      {
-        timerAlarmDisable(timer_incremental);
-        attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
-      }
-      else
-      {
-        timerAlarmEnable(timer_incremental);
-        detachInterrupt(digitalPinToInterrupt(SQW));
-        digitalWrite(IN3_COMMA, HIGH);
-      }
+      dp_count = 0;
+      timerAlarmEnable(timer_incremental);
+      detachInterrupt(digitalPinToInterrupt(SQW));
     }
 
     fill_solid(leds, 4, CRGB::Black);
@@ -333,4 +338,13 @@ void flash_led()
     FastLED.show();
     delay(50);
   }
+}
+
+void updateRTC()
+{
+  timeClient.forceUpdate();
+  Serial.println(timeClient.getFormattedTime());
+  DateTime dt(timeClient.getEpochTime());
+  rtc.adjust(dt);
+  settings.putLastUpdate(timeClient.getEpochTime());
 }
