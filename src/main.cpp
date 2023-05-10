@@ -22,13 +22,15 @@ hw_timer_t *timer_incremental = NULL;
 uint16_t fade_pwm = 0;
 uint8_t fadein_num[4] = {0};
 uint8_t fadeout_num[4] = {0};
+uint8_t fadein_temp[4] = {0};
 uint8_t flag = 0;
-WORK_STATUS work_status;
+WORK_STATUS work_status = DISP_HOUR_MIN;
 uint8_t set_hue; // 0:fixed, 1:increase, 2:decrease
 uint8_t dp_count = 0;
 
 void flash_led();
 void updateRTC();
+void startDP();
 
 void IRAM_ATTR onTimer_PWM()
 {
@@ -78,15 +80,10 @@ void IRAM_ATTR onTimer_incremental()
 
 void IRAM_ATTR onSQW()
 {
-  /* for (int i = 0; i < 4; i++)
-  {
-    fadein_num[i]++;
-    fadein_num[i] %= 10;
-  } */
   fade_pwm = 0;
   timerAlarmEnable(timer_fade);
   digitalWrite(DOT, !digitalRead(DOT));
-  digitalWrite(IN3_COMMA, !digitalRead(IN3_COMMA));
+  // digitalWrite(IN3_COMMA, !digitalRead(IN3_COMMA));
   flag = 1;
 }
 
@@ -128,7 +125,7 @@ void setup()
 
   timer_incremental = timerBegin(0, 80, true);
   timerAttachInterrupt(timer_incremental, onTimer_incremental, true);
-  timerAlarmWrite(timer_incremental, 200000, true);
+  timerAlarmWrite(timer_incremental, 250000, true);
   // timerAlarmEnable(timer_incremental);
 
   startWifiWithWebServer();
@@ -144,6 +141,15 @@ void loop()
 {
   Portal.handleClient();
   // put your main code here, to run repeatedly:
+  if (dp_count > 10)
+  {
+    timerAlarmDisable(timer_incremental);
+    attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
+    dp_count = 0;
+    // flag = 1;
+    fade_pwm = 0;
+  }
+
   if (fade_pwm > FADE_STEP)
   {
     timerAlarmDisable(timer_fade);
@@ -159,23 +165,36 @@ void loop()
     updateRTC();
   }
 
-  if (dp_count > 10)
-  {
-    timerAlarmDisable(timer_incremental);
-    attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
-    dp_count = 0;
-  }
-
   if (flag)
   {
     char date[15] = "MM-DD hh:mm:ss";
     rtc.now().toString(date);
     Serial.println(date);
 
-    fadein_num[0] = date[6] - '0';
-    fadein_num[1] = date[7] - '0';
-    fadein_num[3] = date[12] - '0';
-    fadein_num[2] = date[13] - '0';
+    if ((date[10] - '0') % 5 == 0 && (date[12] - '0') == 0 && (date[13] - '0') == 0)
+      startDP();
+
+    switch (work_status)
+    {
+    case DISP_MIN_SEC:
+      fadein_num[0] = date[9] - '0';
+      fadein_num[1] = date[10] - '0';
+      fadein_num[3] = date[12] - '0';
+      fadein_num[2] = date[13] - '0';
+      break;
+    case DISP_HOUR_MIN:
+      fadein_num[0] = date[6] - '0';
+      fadein_num[1] = date[7] - '0';
+      fadein_num[3] = date[9] - '0';
+      fadein_num[2] = date[10] - '0';
+      break;
+    case DISP_MONTH:
+      fadein_num[0] = date[0] - '0';
+      fadein_num[1] = date[1] - '0';
+      fadein_num[3] = date[3] - '0';
+      fadein_num[2] = date[4] - '0';
+      break;
+    }
     flag = 0;
   }
 
@@ -249,49 +268,27 @@ void loop()
     }
     if (results.command == 0x0C) // 1 ---
     {
-      fadein_num[3] = 1;
-      fade_pwm = 0;
-      timerAlarmEnable(timer_fade);
-      detachInterrupt(digitalPinToInterrupt(SQW));
-      timerAlarmDisable(timer_incremental);
-      digitalWrite(IN3_COMMA, HIGH);
+      work_status = DISP_MIN_SEC;
     }
 
     if (results.command == 0x18) // 2 ---
     {
-      fadein_num[3] = 2;
-      fade_pwm = 0;
-      timerAlarmEnable(timer_fade);
-      detachInterrupt(digitalPinToInterrupt(SQW));
-      timerAlarmDisable(timer_incremental);
-      digitalWrite(IN3_COMMA, HIGH);
+      work_status = DISP_HOUR_MIN;
     }
 
     if (results.command == 0x5E) // 3 ---
     {
-      fadein_num[3] = 3;
-      fade_pwm = 0;
-      timerAlarmEnable(timer_fade);
-      detachInterrupt(digitalPinToInterrupt(SQW));
-      timerAlarmDisable(timer_incremental);
-      digitalWrite(IN3_COMMA, HIGH);
+      work_status = DISP_MONTH;
     }
 
     if (results.command == 0x08) // 4 ---
     {
-      fadein_num[3] = 4;
-      fade_pwm = 0;
-      timerAlarmEnable(timer_fade);
-      detachInterrupt(digitalPinToInterrupt(SQW));
-      timerAlarmDisable(timer_incremental);
-      digitalWrite(IN3_COMMA, HIGH);
+      work_status = DISP_TEMP_HUMIDITY;
     }
 
     if (results.command == 0x16) // 0 ---
     {
-      dp_count = 0;
-      timerAlarmEnable(timer_incremental);
-      detachInterrupt(digitalPinToInterrupt(SQW));
+      startDP();
     }
 
     fill_solid(leds, 4, CRGB::Black);
@@ -347,4 +344,16 @@ void updateRTC()
   DateTime dt(timeClient.getEpochTime());
   rtc.adjust(dt);
   settings.putLastUpdate(timeClient.getEpochTime());
+}
+
+void startDP()
+{
+  dp_count = 0;
+  for (int i = 0; i != 4; i++)
+  {
+    fadein_temp[i] = fadein_num[i];
+    fadein_num[i] = 0;
+  }
+  timerAlarmEnable(timer_incremental);
+  detachInterrupt(digitalPinToInterrupt(SQW));
 }
