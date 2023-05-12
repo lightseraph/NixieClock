@@ -43,17 +43,17 @@ void Settings::getTime(uint8_t *time, uint8_t on_off)
 {
     if (on_off == CLOSE_TIME)
     {
-        time[0] = getUChar("c_h", 0) / 10;
-        time[1] = getUChar("c_h", 0) % 10;
-        time[2] = getUChar("c_m", 0) / 10;
-        time[3] = getUChar("c_m", 0) % 10;
+        time[3] = getUChar("c_h", 0) / 10;
+        time[2] = getUChar("c_h", 0) % 10;
+        time[1] = getUChar("c_m", 0) / 10;
+        time[0] = getUChar("c_m", 0) % 10;
     }
     else if (on_off == OPEN_TIME)
     {
-        time[0] = getUChar("o_h", 0) / 10;
-        time[1] = getUChar("o_h", 0) % 10;
-        time[2] = getUChar("o_m", 0) / 10;
-        time[3] = getUChar("o_m", 0) % 10;
+        time[3] = getUChar("o_h", 0) / 10;
+        time[2] = getUChar("o_h", 0) % 10;
+        time[1] = getUChar("o_m", 0) / 10;
+        time[0] = getUChar("o_m", 0) % 10;
     }
 }
 
@@ -62,13 +62,13 @@ void Settings::putTime(const uint8_t *time, uint8_t on_off)
 {
     if (on_off == CLOSE_TIME)
     {
-        putUChar("c_h", time[0] * 10 + time[1]);
-        putUChar("c_m", time[2] * 10 + time[3]);
+        putUChar("c_h", time[3] * 10 + time[2]);
+        putUChar("c_m", time[1] * 10 + time[0]);
     }
     else if (on_off == OPEN_TIME)
     {
-        putUChar("o_h", time[0] * 10 + time[1]);
-        putUChar("o_h", time[2] * 10 + time[3]);
+        putUChar("o_h", time[3] * 10 + time[2]);
+        putUChar("o_m", time[1] * 10 + time[0]);
     }
 }
 

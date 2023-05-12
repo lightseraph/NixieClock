@@ -22,9 +22,9 @@ public:
     uint32_t getLastUpdate(void);
     void putLastUpdate(uint32_t secondstime);
     uint32_t mLastupdate;
+    uint8_t mClose_time[4];
+    uint8_t mOpen_time[4];
 
 private:
     CHSV mColor;
-    uint8_t mClose_time[4];
-    uint8_t mOpen_time[4];
 };

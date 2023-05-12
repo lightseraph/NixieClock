@@ -22,15 +22,18 @@ hw_timer_t *timer_incremental = NULL;
 uint16_t fade_pwm = 0;
 uint8_t fadein_num[4] = {0};
 uint8_t fadeout_num[4] = {0};
-uint8_t fadein_temp[4] = {0};
+const uint8_t fadein_blank[4] = {10};
+uint8_t set_num[4] = {0};
 uint8_t flag = 0;
 WORK_STATUS work_status = DISP_HOUR_MIN;
 uint8_t set_hue; // 0:fixed, 1:increase, 2:decrease
 uint8_t dp_count = 0;
+bool halfSQW = false;
 
 void flash_led();
 void updateRTC();
 void startDP();
+void useHalfSQW(bool sw);
 
 void IRAM_ATTR onTimer_PWM()
 {
@@ -38,13 +41,9 @@ void IRAM_ATTR onTimer_PWM()
   counter++;
 
   if ((counter % FADE_STEP) < fade_pwm)
-  {
     displayNixie(fadein_num);
-  }
   else
-  {
     displayNixie(fadeout_num);
-  }
 }
 
 void IRAM_ATTR onTimer_Fade()
@@ -73,18 +72,47 @@ void IRAM_ATTR onTimer_incremental()
     fadein_num[i]++;
     fadein_num[i] %= 10;
   }
-  fade_pwm = 256;
+  fade_pwm = 255;
   flag = 0;
   dp_count++;
 }
 
 void IRAM_ATTR onSQW()
 {
-  fade_pwm = 0;
   timerAlarmEnable(timer_fade);
-  digitalWrite(DOT, !digitalRead(DOT));
-  // digitalWrite(IN3_COMMA, !digitalRead(IN3_COMMA));
-  flag = 1;
+
+  if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR)
+  {
+    fade_pwm = 255;
+    digitalWrite(DOT, HIGH);
+    flag = 0;
+    if (digitalRead(SQW) == HIGH)
+      memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
+    else
+    {
+      fadein_num[2] = 10;
+      fadein_num[3] = 10;
+    }
+  }
+  else if (work_status == SET_CLOSE_TIME_MIN || work_status == SET_OPEN_TIME_MIN)
+  {
+    fade_pwm = 255;
+    digitalWrite(DOT, HIGH);
+    flag = 0;
+    if (digitalRead(SQW) == HIGH)
+      memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
+    else
+    {
+      fadein_num[0] = 10;
+      fadein_num[1] = 10;
+    }
+  }
+  else
+  {
+    fade_pwm = 0;
+    digitalWrite(DOT, !digitalRead(DOT));
+    flag = 1;
+  }
 }
 
 void setup()
@@ -125,8 +153,7 @@ void setup()
 
   timer_incremental = timerBegin(0, 80, true);
   timerAttachInterrupt(timer_incremental, onTimer_incremental, true);
-  timerAlarmWrite(timer_incremental, 250000, true);
-  // timerAlarmEnable(timer_incremental);
+  timerAlarmWrite(timer_incremental, 250000, true); // 解毒数字循环周期 250us
 
   startWifiWithWebServer();
   irrecv.enableIRIn();
@@ -146,7 +173,6 @@ void loop()
     timerAlarmDisable(timer_incremental);
     attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
     dp_count = 0;
-    // flag = 1;
     fade_pwm = 0;
   }
 
@@ -160,51 +186,79 @@ void loop()
     }
   }
 
-  if (rtc.now().unixtime() - settings.mLastupdate > TIME_UPDATE_INTERVAL)
-  {
-    updateRTC();
-  }
-
   if (flag)
   {
     char date[15] = "MM-DD hh:mm:ss";
-    rtc.now().toString(date);
+    DateTime rtc_dt = rtc.now();
+    rtc_dt.toString(date);
     Serial.println(date);
 
-    if ((date[10] - '0') % 5 == 0 && (date[12] - '0') == 0 && (date[13] - '0') == 0)
-      startDP();
+    if (rtc_dt.unixtime() - settings.mLastupdate > TIME_UPDATE_INTERVAL)
+      updateRTC();
+
+    if (!(settings.mOpen_time[0] == 0 &&
+          settings.mOpen_time[1] == 0 &&
+          settings.mOpen_time[2] == 0 &&
+          settings.mOpen_time[3] == 0))
+    {
+      if (settings.mOpen_time[0] == (date[13] - '0') &&
+          settings.mOpen_time[1] == (date[12] - '0') &&
+          settings.mOpen_time[2] == (date[10] - '0') &&
+          settings.mOpen_time[3] == (date[9] - '0'))
+      {
+        if (digitalRead(HV_ENABLE) == HIGH)
+          digitalWrite(HV_ENABLE, LOW);
+      }
+    }
+
+    if (!(settings.mClose_time[0] == 0 &&
+          settings.mClose_time[1] == 0 &&
+          settings.mClose_time[2] == 0 &&
+          settings.mClose_time[3] == 0))
+    {
+      if (settings.mClose_time[0] == (date[13] - '0') &&
+          settings.mClose_time[1] == (date[12] - '0') &&
+          settings.mClose_time[2] == (date[10] - '0') &&
+          settings.mClose_time[3] == (date[9] - '0'))
+      {
+        if (digitalRead(HV_ENABLE) == LOW)
+          digitalWrite(HV_ENABLE, HIGH);
+      }
+    }
 
     switch (work_status)
     {
     case DISP_MIN_SEC:
-      fadein_num[0] = date[9] - '0';
-      fadein_num[1] = date[10] - '0';
+      fadein_num[1] = date[9] - '0';
+      fadein_num[0] = date[10] - '0';
       fadein_num[3] = date[12] - '0';
       fadein_num[2] = date[13] - '0';
       break;
     case DISP_HOUR_MIN:
-      fadein_num[0] = date[6] - '0';
-      fadein_num[1] = date[7] - '0';
+      fadein_num[1] = date[6] - '0';
+      fadein_num[0] = date[7] - '0';
       fadein_num[3] = date[9] - '0';
       fadein_num[2] = date[10] - '0';
       break;
     case DISP_MONTH:
-      fadein_num[0] = date[0] - '0';
-      fadein_num[1] = date[1] - '0';
+      fadein_num[1] = date[0] - '0';
+      fadein_num[0] = date[1] - '0';
       fadein_num[3] = date[3] - '0';
       fadein_num[2] = date[4] - '0';
       break;
     }
     flag = 0;
+
+    if ((date[10] - '0') % 5 == 0 && (date[12] - '0') == 0 && (date[13] - '0') == 0)
+      startDP();
   }
 
   if (irrecv.decode(&results))
   {
-    // print() & println() can't handle printing long longs. (uint64_t)
     serialPrintUint64(results.command, HEX);
 
     Serial.println("");
-    if (results.command == 0x43) // play/pause
+    if (results.command == 0x43) // use NTP update rtc
     {
       updateRTC();
       flash_led();
@@ -230,17 +284,61 @@ void loop()
     }
     if (results.command == 0x15) // ++++
     {
-      if (color.val < 245)
-        color.val += 10;
+      if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR)
+      {
+        uint8_t temp = set_num[3] * 10 + set_num[2];
+        temp++;
+        if (temp == 24)
+          temp = 0;
+        set_num[3] = temp / 10;
+        set_num[2] = temp % 10;
+      }
+      else if (work_status == SET_CLOSE_TIME_MIN || work_status == SET_OPEN_TIME_MIN)
+      {
+        uint8_t temp = set_num[1] * 10 + set_num[0];
+        temp++;
+        if (temp == 60)
+          temp = 0;
+        set_num[1] = temp / 10;
+        set_num[0] = temp % 10;
+      }
       else
-        color.val = 255;
+      {
+        if (color.val < 245)
+          color.val += 10;
+        else
+          color.val = 255;
+      }
     }
     if (results.command == 0x07) // ----
     {
-      if (color.val > 10)
-        color.val -= 10;
+      if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR)
+      {
+        uint8_t temp = set_num[3] * 10 + set_num[2];
+        if (temp == 0)
+          temp = 23;
+        else
+          temp--;
+        set_num[3] = temp / 10;
+        set_num[2] = temp % 10;
+      }
+      else if (work_status == SET_CLOSE_TIME_MIN || work_status == SET_OPEN_TIME_MIN)
+      {
+        uint8_t temp = set_num[1] * 10 + set_num[0];
+        if (temp == 0)
+          temp = 59;
+        else
+          temp--;
+        set_num[1] = temp / 10;
+        set_num[0] = temp % 10;
+      }
       else
-        color.val = 0;
+      {
+        if (color.val > 10)
+          color.val -= 10;
+        else
+          color.val = 0;
+      }
     }
     if (results.command == 0x47) // CH-
     {
@@ -259,6 +357,7 @@ void loop()
     if (results.command == 0x46) // CH
     {
       color = settings.getColor();
+      flash_led();
     }
     if (results.command == 0x4a) // 9 --- HV
     {
@@ -269,21 +368,69 @@ void loop()
     if (results.command == 0x0C) // 1 ---
     {
       work_status = DISP_MIN_SEC;
+      if (halfSQW)
+        useHalfSQW(false);
     }
 
     if (results.command == 0x18) // 2 ---
     {
       work_status = DISP_HOUR_MIN;
+      if (halfSQW)
+        useHalfSQW(false);
     }
 
     if (results.command == 0x5E) // 3 ---
     {
       work_status = DISP_MONTH;
+      if (halfSQW)
+        useHalfSQW(false);
     }
 
     if (results.command == 0x08) // 4 ---
     {
       work_status = DISP_TEMP_HUMIDITY;
+      if (halfSQW)
+        useHalfSQW(false);
+    }
+
+    if (results.command == 0x5A) // 6 ---
+    {
+      if (work_status == SET_OPEN_TIME_MIN)
+      {
+        work_status = DISP_HOUR_MIN;
+        settings.putTime(set_num, OPEN_TIME);
+        useHalfSQW(false);
+      }
+      else if (work_status == SET_OPEN_TIME_HOUR)
+      {
+        work_status = SET_OPEN_TIME_MIN;
+      }
+      else
+      {
+        work_status = SET_OPEN_TIME_HOUR;
+        useHalfSQW(true);
+        settings.getTime(set_num, OPEN_TIME);
+      }
+    }
+
+    if (results.command == 0x42) // 7 ---
+    {
+      if (work_status == SET_CLOSE_TIME_MIN)
+      {
+        work_status = DISP_HOUR_MIN;
+        settings.putTime(set_num, CLOSE_TIME);
+        useHalfSQW(false);
+      }
+      else if (work_status == SET_CLOSE_TIME_HOUR)
+      {
+        work_status = SET_CLOSE_TIME_MIN;
+      }
+      else
+      {
+        work_status = SET_CLOSE_TIME_HOUR;
+        useHalfSQW(true);
+        settings.getTime(set_num, CLOSE_TIME);
+      }
     }
 
     if (results.command == 0x16) // 0 ---
@@ -293,7 +440,7 @@ void loop()
 
     fill_solid(leds, 4, CRGB::Black);
     FastLED.show();
-    delay(30);
+    delay(20);
     irrecv.resume(); // Receive the next value
   }
 
@@ -309,19 +456,10 @@ void loop()
     break;
   }
 
-  /* if (counter > 50)
-  {
-    if (ledcRead(8) > 250)
-      cross_fade(9, 8);
-    else
-      cross_fade(8, 9);
-    counter = 0;
-  } */
-
   fill_solid(leds, 4, color);
   FastLED.show();
 
-  delay(25);
+  delay(20);
 }
 
 void flash_led()
@@ -349,11 +487,26 @@ void updateRTC()
 void startDP()
 {
   dp_count = 0;
-  for (int i = 0; i != 4; i++)
+  for (int i = 0; i < 4; i++)
   {
-    fadein_temp[i] = fadein_num[i];
-    fadein_num[i] = 0;
+    fadein_num[i] = 255;
   }
   timerAlarmEnable(timer_incremental);
   detachInterrupt(digitalPinToInterrupt(SQW));
+}
+
+void useHalfSQW(bool sw)
+{
+  if (sw)
+  {
+    detachInterrupt(digitalPinToInterrupt(SQW));
+    attachInterrupt(digitalPinToInterrupt(SQW), onSQW, CHANGE);
+    halfSQW = true;
+  }
+  else
+  {
+    detachInterrupt(digitalPinToInterrupt(SQW));
+    attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
+    halfSQW = false;
+  }
 }

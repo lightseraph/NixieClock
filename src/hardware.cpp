@@ -1,10 +1,10 @@
 #include <Hardware.h>
 
 const uint8_t digit_offset[4][11] = {
-    {41, 38, 7, 23, 39, 8, 24, 40, 9, 25, 64},
-    {22, 19, 35, 4, 20, 36, 5, 21, 37, 6, 64},
-    {3, 32, 16, 0, 1, 17, 33, 2, 18, 34, 64},
-    {10, 44, 13, 28, 12, 43, 27, 11, 42, 26, 64}};
+    {41, 38, 7, 23, 39, 8, 24, 40, 9, 25, 14},
+    {22, 19, 35, 4, 20, 36, 5, 21, 37, 6, 14},
+    {3, 32, 16, 0, 1, 17, 33, 2, 18, 34, 14},
+    {10, 44, 13, 28, 12, 43, 27, 11, 42, 26, 14}};
 
 uint32_t nixieBitData_H = 0;
 uint32_t nixieBitData_L = 0;
@@ -14,6 +14,7 @@ CRGB leds[NUM_LEDS];
 // CHSV color;
 
 RTC_DS3231 rtc;
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 void init_I2C()
 {
@@ -28,6 +29,8 @@ void init_I2C()
     }
     rtc.disable32K();
     rtc.writeSqwPinMode(DS3231_SquareWave1Hz);
+
+    sht31.begin();
 }
 
 void initLED()

@@ -5,6 +5,7 @@
 #include <IRrecv.h>
 #include <IRutils.h>
 #include <SPI.h>
+#include <Adafruit_SHT31.h>
 
 /*---------------LED----------------*/
 
@@ -49,9 +50,11 @@ typedef enum
     DISP_MONTH,
     DISP_TEMP_HUMIDITY,
     DISP_DP,
-    SET_NTP_UPDATE,
-    SET_OPEN_TIME,
-    SET_CLOSE_TIME
+    // SET_NTP_UPDATE,
+    SET_OPEN_TIME_HOUR,
+    SET_OPEN_TIME_MIN,
+    SET_CLOSE_TIME_HOUR,
+    SET_CLOSE_TIME_MIN
 } WORK_STATUS;
 
 void initNixieDriver();
