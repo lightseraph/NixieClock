@@ -19,13 +19,13 @@ decode_results results;
 
 hw_timer_t *timer_PWM = NULL;
 hw_timer_t *timer_fade = NULL;
-hw_timer_t *timer_incremental = NULL;
+hw_timer_t *timer_DP = NULL;
 uint16_t fade_pwm = 0;
 uint8_t fadein_num[4] = {0};
 uint8_t fadeout_num[4] = {0};
 const uint8_t fadein_blank[4] = {10};
 uint8_t set_num[4] = {0};
-uint8_t flag = 0;
+uint8_t displayStatus_Flag = 0;
 WORK_STATUS work_status = DISP_HOUR_MIN;
 uint8_t set_hue; // 0:fixed, 1:increase, 2:decrease
 uint8_t dp_count = 0;
@@ -69,7 +69,7 @@ void IRAM_ATTR onRADAR_ACT()
   }
 }
 
-void IRAM_ATTR onTimer_incremental()
+void IRAM_ATTR onTimer_DP()
 {
   for (int i = 0; i < 4; i++)
   {
@@ -77,7 +77,7 @@ void IRAM_ATTR onTimer_incremental()
     fadein_num[i] %= 10;
   }
   fade_pwm = 255;
-  flag = 0;
+  displayStatus_Flag = 0;
   dp_count++;
 }
 
@@ -89,7 +89,7 @@ void IRAM_ATTR onSQW()
   {
     fade_pwm = 255;
     digitalWrite(DOT, HIGH);
-    flag = 0;
+    displayStatus_Flag = 0;
     if (digitalRead(SQW) == HIGH)
       memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
     else
@@ -102,7 +102,7 @@ void IRAM_ATTR onSQW()
   {
     fade_pwm = 255;
     digitalWrite(DOT, HIGH);
-    flag = 0;
+    displayStatus_Flag = 0;
     if (digitalRead(SQW) == HIGH)
       memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
     else
@@ -116,7 +116,7 @@ void IRAM_ATTR onSQW()
     fade_pwm = 0;
     if (work_status != DISP_TEMP_HUMIDITY)
       digitalWrite(DOT, !digitalRead(DOT));
-    flag = 1;
+    displayStatus_Flag = 1;
   }
 }
 
@@ -157,9 +157,9 @@ void setup()
   timerAttachInterrupt(timer_fade, onTimer_Fade, true);
   timerAlarmWrite(timer_fade, FADE_TIME / FADE_STEP * 1000, true);
 
-  timer_incremental = timerBegin(0, 80, true);
-  timerAttachInterrupt(timer_incremental, onTimer_incremental, true);
-  timerAlarmWrite(timer_incremental, 300000, true); // 解毒数字循环周期 300ms
+  timer_DP = timerBegin(0, 80, true);
+  timerAttachInterrupt(timer_DP, onTimer_DP, true);
+  timerAlarmWrite(timer_DP, 300000, true); // 解毒数字循环周期 300ms
 
   startWifiWithWebServer();
   irrecv.enableIRIn();
@@ -175,9 +175,11 @@ void loop()
   Portal.handleClient();
   // put your main code here, to run repeatedly:
 
+  // 不显示温度湿度状态关闭小数点
   if (work_status != DISP_TEMP_HUMIDITY && HIGH == digitalRead(IN3_COMMA))
     digitalWrite(IN3_COMMA, LOW);
 
+  // 主循环里判断PWM占空比是否变到100
   if (fade_pwm > FADE_STEP)
   {
     timerAlarmDisable(timer_fade);
@@ -185,28 +187,31 @@ void loop()
     memcpy(fadeout_num, fadein_num, 4 * sizeof(uint8_t));
   }
 
+  // 结束解毒程序，返回正常时间显示
   if (dp_count > dp_limit)
   {
-    timerAlarmDisable(timer_incremental);
+    timerAlarmDisable(timer_DP);
     attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
     dp_count = 0;
     fade_pwm = 0;
-    flag = 1;
+    displayStatus_Flag = 1;
   }
 
-  if (flag)
+  if (displayStatus_Flag)
   {
     char date[15] = "MM-DD hh:mm:ss";
     DateTime rtc_dt = rtc.now();
     rtc_dt.toString(date);
     Serial.println(date);
 
+    // 从NTP更新时间间隔超过2天，自动更新一次
     if (rtc_dt.unixtime() - settings.mLastupdate > TIME_UPDATE_INTERVAL)
     {
       updateRTC();
       Serial.println("RTC time has been updated");
     }
 
+    // 自动开关机时间设置为00:00时，为无效状态
     if (!(settings.mOpen_time[0] == 0 &&
           settings.mOpen_time[1] == 0 &&
           settings.mOpen_time[2] == 0 &&
@@ -261,7 +266,7 @@ void loop()
       float fTemp_hum;
       digitalWrite(IN3_COMMA, HIGH);
 
-      if (((humidity_count / 5) % 2) == 0) // 每5秒切换一次温度湿度显示
+      if (((humidity_count / 5) % 2) == 0) // 每5秒切换一次温度湿度显示，温度显示冒号亮，湿度显示冒号灭
       {
         fTemp_hum = sht31.readTemperature();
         digitalWrite(DOT, HIGH);
@@ -282,18 +287,20 @@ void loop()
         work_status = DISP_HOUR_MIN;
       break;
     }
-    flag = 0;
+    displayStatus_Flag = 0;
 
+    // 分钟数字被5整除调用一次解毒
     if ((date[10] - '0') % 5 == 0 && (date[12] - '0') == 0 && (date[13] - '0') == 0)
       startDP(1);
   }
 
+  // 红外接收处理
   if (irrecv.decode(&results))
   {
     serialPrintUint64(results.command, HEX);
 
     Serial.println("");
-    if (results.command == 0x43) // use NTP update rtc
+    if (results.command == 0x43) // play键  use NTP update rtc
     {
       updateRTC();
       flash_led();
@@ -440,7 +447,7 @@ void loop()
       humidity_count = 0;
     }
 
-    if (results.command == 0x5A) // 6 ---
+    if (results.command == 0x5A) // 6 ---设置自动开机时间
     {
       if (work_status == SET_OPEN_TIME_MIN)
       {
@@ -460,7 +467,7 @@ void loop()
       }
     }
 
-    if (results.command == 0x42) // 7 ---
+    if (results.command == 0x42) // 7 ---设置自动关机时间
     {
       if (work_status == SET_CLOSE_TIME_MIN)
       {
@@ -480,9 +487,10 @@ void loop()
       }
     }
 
-    if (results.command == 0x16) // 0 ---
+    if (results.command == 0x16) // 0 ---手动DP，持续十次
       startDP(10);
 
+    // 有红外信号时，闪烁LED
     fill_solid(leds, 4, CRGB::Black);
     FastLED.show();
     delay(30);
@@ -512,6 +520,7 @@ void loop()
     colorChanged = false;
     delay(30);
   }
+  // 主循环所有分支均依靠条件分支，无常态延时
 }
 
 void flash_led()
@@ -544,11 +553,12 @@ void startDP(uint8_t repeat)
 
   dp_limit = 10 * repeat;
 
-  timerAlarmEnable(timer_incremental);
+  timerAlarmEnable(timer_DP);
   detachInterrupt(digitalPinToInterrupt(SQW));
   digitalWrite(DOT, HIGH);
 }
 
+// 用于设置模式时，闪烁频率提高一倍，即使用 SQW 秒脉冲在上下沿都触发
 void useHalfSQW(bool sw)
 {
   if (sw)
