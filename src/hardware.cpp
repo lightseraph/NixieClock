@@ -43,7 +43,7 @@ void initLED()
 
 void initNixieDriver()
 {
-    pinMode(32, INPUT_PULLDOWN);
+    pinMode(32, INPUT_PULLDOWN); // SPI输入脚空置，拉低
     pinMode(NIXIE_CLK, OUTPUT);
     pinMode(NIXIE_DATA, OUTPUT);
     pinMode(NIXIE_LATCH, OUTPUT);

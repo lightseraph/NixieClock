@@ -13,7 +13,7 @@
 #define LED_TYPE WS2812B
 #define COLOR_ORDER GRB
 #define LED_DATA 27
-#define LED_BRIGHTNESS 128
+#define LED_BRIGHTNESS 150
 
 /*-------------Nixie---------------*/
 
@@ -31,17 +31,19 @@
 #define RADAR 13
 
 /*-----------Sensor, RTC-----------*/
+
 #define SDA 22
 #define SCL 21
 #define SQW 16
 
 /*--------------PWM---------------*/
+
 #define PWM_PERIOD 20 // us
 #define FADE_STEP 255
 #define FADE_TIME 700.0      // ms
 #define SPI_RATE 9 * 1000000 // 9MHz
 
-#define TIME_UPDATE_INTERVAL 259200 // 3天
+#define TIME_UPDATE_INTERVAL 172800 // 2天
 
 typedef enum
 {
@@ -49,8 +51,6 @@ typedef enum
     DISP_HOUR_MIN,
     DISP_MONTH,
     DISP_TEMP_HUMIDITY,
-    DISP_DP,
-    // SET_NTP_UPDATE,
     SET_OPEN_TIME_HOUR,
     SET_OPEN_TIME_MIN,
     SET_CLOSE_TIME_HOUR,

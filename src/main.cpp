@@ -10,6 +10,7 @@ extern AutoConnect Portal;
 extern CRGB leds[NUM_LEDS];
 CHSV color;
 extern RTC_DS3231 rtc;
+extern Adafruit_SHT31 sht31;
 Settings settings;
 
 IRrecv irrecv(IR_PIN);
@@ -29,10 +30,13 @@ WORK_STATUS work_status = DISP_HOUR_MIN;
 uint8_t set_hue; // 0:fixed, 1:increase, 2:decrease
 uint8_t dp_count = 0;
 bool halfSQW = false;
+bool colorChanged;
+uint8_t humidity_count = 0;
+uint16_t dp_limit;
 
 void flash_led();
 void updateRTC();
-void startDP();
+void startDP(uint8_t repeat);
 void useHalfSQW(bool sw);
 
 void IRAM_ATTR onTimer_PWM()
@@ -110,7 +114,8 @@ void IRAM_ATTR onSQW()
   else
   {
     fade_pwm = 0;
-    digitalWrite(DOT, !digitalRead(DOT));
+    if (work_status != DISP_TEMP_HUMIDITY)
+      digitalWrite(DOT, !digitalRead(DOT));
     flag = 1;
   }
 }
@@ -142,6 +147,7 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
   // attachInterrupt(digitalPinToInterrupt(RADAR), onRADAR_ACT, CHANGE);
   color = settings.getColor();
+  colorChanged = true;
 
   timer_PWM = timerBegin(1, 80, true);
   timerAttachInterrupt(timer_PWM, onTimer_PWM, true);
@@ -153,7 +159,7 @@ void setup()
 
   timer_incremental = timerBegin(0, 80, true);
   timerAttachInterrupt(timer_incremental, onTimer_incremental, true);
-  timerAlarmWrite(timer_incremental, 250000, true); // 解毒数字循环周期 250us
+  timerAlarmWrite(timer_incremental, 300000, true); // 解毒数字循环周期 300ms
 
   startWifiWithWebServer();
   irrecv.enableIRIn();
@@ -168,22 +174,24 @@ void loop()
 {
   Portal.handleClient();
   // put your main code here, to run repeatedly:
-  if (dp_count > 10)
-  {
-    timerAlarmDisable(timer_incremental);
-    attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
-    dp_count = 0;
-    fade_pwm = 0;
-  }
+
+  if (work_status != DISP_TEMP_HUMIDITY && HIGH == digitalRead(IN3_COMMA))
+    digitalWrite(IN3_COMMA, LOW);
 
   if (fade_pwm > FADE_STEP)
   {
     timerAlarmDisable(timer_fade);
     fade_pwm = FADE_STEP;
-    for (int i = 0; i < 4; i++)
-    {
-      fadeout_num[i] = fadein_num[i];
-    }
+    memcpy(fadeout_num, fadein_num, 4 * sizeof(uint8_t));
+  }
+
+  if (dp_count > dp_limit)
+  {
+    timerAlarmDisable(timer_incremental);
+    attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
+    dp_count = 0;
+    fade_pwm = 0;
+    flag = 1;
   }
 
   if (flag)
@@ -194,7 +202,10 @@ void loop()
     Serial.println(date);
 
     if (rtc_dt.unixtime() - settings.mLastupdate > TIME_UPDATE_INTERVAL)
+    {
       updateRTC();
+      Serial.println("RTC time has been updated");
+    }
 
     if (!(settings.mOpen_time[0] == 0 &&
           settings.mOpen_time[1] == 0 &&
@@ -246,11 +257,35 @@ void loop()
       fadein_num[3] = date[3] - '0';
       fadein_num[2] = date[4] - '0';
       break;
+    case DISP_TEMP_HUMIDITY:
+      float fTemp_hum;
+      digitalWrite(IN3_COMMA, HIGH);
+
+      if (((humidity_count / 5) % 2) == 0) // 每5秒切换一次温度湿度显示
+      {
+        fTemp_hum = sht31.readTemperature();
+        digitalWrite(DOT, HIGH);
+      }
+      else
+      {
+        fTemp_hum = sht31.readHumidity();
+        digitalWrite(DOT, LOW);
+      }
+
+      fadein_num[3] = (int)fTemp_hum / 10;
+      fadein_num[2] = (int)fTemp_hum % 10;
+      fadein_num[1] = (((int)(fTemp_hum * 100)) % 100) / 10;
+      fadein_num[0] = (((int)(fTemp_hum * 100)) % 100) % 10;
+
+      humidity_count++;
+      if (humidity_count == 60) // 持续显示60秒后返回显示时间
+        work_status = DISP_HOUR_MIN;
+      break;
     }
     flag = 0;
 
     if ((date[10] - '0') % 5 == 0 && (date[12] - '0') == 0 && (date[13] - '0') == 0)
-      startDP();
+      startDP(1);
   }
 
   if (irrecv.decode(&results))
@@ -268,14 +303,20 @@ void loop()
       if (set_hue == 0)
         set_hue = 2;
       else
+      {
         set_hue = 0;
+        colorChanged = true;
+      }
     }
     if (results.command == 0x40) // next
     {
       if (set_hue == 0)
         set_hue = 1;
       else
+      {
         set_hue = 0;
+        colorChanged = true;
+      }
     }
     if (results.command == 0x09) // EQ
     {
@@ -308,6 +349,7 @@ void loop()
           color.val += 10;
         else
           color.val = 255;
+        colorChanged = true;
       }
     }
     if (results.command == 0x07) // ----
@@ -338,6 +380,7 @@ void loop()
           color.val -= 10;
         else
           color.val = 0;
+        colorChanged = true;
       }
     }
     if (results.command == 0x47) // CH-
@@ -346,6 +389,7 @@ void loop()
         color.sat += 10;
       else
         color.sat = 255;
+      colorChanged = true;
     }
     if (results.command == 0x45) // CH+
     {
@@ -353,10 +397,12 @@ void loop()
         color.sat -= 10;
       else
         color.sat = 0;
+      colorChanged = true;
     }
     if (results.command == 0x46) // CH
     {
       color = settings.getColor();
+      colorChanged = true;
       flash_led();
     }
     if (results.command == 0x4a) // 9 --- HV
@@ -391,6 +437,7 @@ void loop()
       work_status = DISP_TEMP_HUMIDITY;
       if (halfSQW)
         useHalfSQW(false);
+      humidity_count = 0;
     }
 
     if (results.command == 0x5A) // 6 ---
@@ -434,13 +481,13 @@ void loop()
     }
 
     if (results.command == 0x16) // 0 ---
-    {
-      startDP();
-    }
+      startDP(10);
 
     fill_solid(leds, 4, CRGB::Black);
     FastLED.show();
-    delay(20);
+    delay(30);
+    fill_solid(leds, 4, color);
+    FastLED.show();
     irrecv.resume(); // Receive the next value
   }
 
@@ -450,16 +497,21 @@ void loop()
     break;
   case 1:
     color.hue++;
+    colorChanged = true;
     break;
   case 2:
     color.hue--;
+    colorChanged = true;
     break;
   }
 
-  fill_solid(leds, 4, color);
-  FastLED.show();
-
-  delay(20);
+  if (colorChanged)
+  {
+    fill_solid(leds, 4, color);
+    FastLED.show();
+    colorChanged = false;
+    delay(30);
+  }
 }
 
 void flash_led()
@@ -484,15 +536,17 @@ void updateRTC()
   settings.putLastUpdate(timeClient.getEpochTime());
 }
 
-void startDP()
+void startDP(uint8_t repeat)
 {
   dp_count = 0;
   for (int i = 0; i < 4; i++)
-  {
     fadein_num[i] = 255;
-  }
+
+  dp_limit = 10 * repeat;
+
   timerAlarmEnable(timer_incremental);
   detachInterrupt(digitalPinToInterrupt(SQW));
+  digitalWrite(DOT, HIGH);
 }
 
 void useHalfSQW(bool sw)
