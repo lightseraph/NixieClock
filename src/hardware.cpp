@@ -25,7 +25,7 @@ void init_I2C()
         Serial.println("Couldn't find RTC");
         Serial.flush();
         while (1)
-            delay(10);
+            delay(100);
     }
     rtc.disable32K();
     rtc.writeSqwPinMode(DS3231_SquareWave1Hz);
@@ -52,19 +52,10 @@ void initNixieDriver()
     SPI.begin(NIXIE_CLK, 32, NIXIE_DATA, NIXIE_LATCH);
     SPI.beginTransaction(SPISettings(SPI_RATE, MSBFIRST, SPI_MODE0));
     SPI.setHwCs(false);
+    displayNixie(fadein_blank);
 }
 
-void calcNixieData(uint8_t digits, uint8_t num)
-{
-    uint8_t offset = digit_offset[digits - 1][num];
-    nixieBitData = 0;
-
-    nixieBitData |= ((uint64_t)1) << offset;
-    nixieBitData_H = (nixieBitData >> 32);
-    nixieBitData_L = (nixieBitData & 0x00000000FFFFFFFF);
-}
-
-void displayNixie(uint8_t *digits)
+void displayNixie(const uint8_t *digits)
 {
     nixieBitData = 0;
     for (int i = 0; i < 4; i++)

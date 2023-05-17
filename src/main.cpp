@@ -23,7 +23,6 @@ hw_timer_t *timer_DP = NULL;
 uint16_t fade_pwm = 0;
 uint8_t fadein_num[4] = {0};
 uint8_t fadeout_num[4] = {0};
-const uint8_t fadein_blank[4] = {10};
 uint8_t set_num[4] = {0};
 uint8_t displayStatus_Flag = 0;
 WORK_STATUS work_status = DISP_HOUR_MIN;
@@ -134,7 +133,7 @@ void setup()
   pinMode(IN2_COMMA, OUTPUT);
   pinMode(IN3_COMMA, OUTPUT);
 
-  digitalWrite(HV_ENABLE, LOW); // 低电平有效
+  digitalWrite(HV_ENABLE, HIGH); // 低电平有效
   digitalWrite(DOT, HIGH);
   digitalWrite(IN2_COMMA, LOW);
   digitalWrite(IN3_COMMA, LOW);
@@ -167,6 +166,7 @@ void setup()
   set_hue = 0;
   timerAlarmEnable(timer_PWM);
   flash_led();
+  digitalWrite(HV_ENABLE, LOW);
   Serial.println("hardware setup success!");
 }
 
@@ -415,8 +415,8 @@ void loop()
     if (results.command == 0x4a) // 9 --- HV
     {
       digitalWrite(HV_ENABLE, !digitalRead(HV_ENABLE));
-      digitalWrite(DOT, !digitalRead(DOT));
-      // delay(45);
+      // digitalWrite(DOT, !digitalRead(DOT));
+      //  delay(45);
     }
     if (results.command == 0x0C) // 1 ---
     {

@@ -45,6 +45,8 @@
 
 #define TIME_UPDATE_INTERVAL 172800 // 2天
 
+const uint8_t fadein_blank[4] = {10};
+
 typedef enum
 {
     DISP_MIN_SEC,
@@ -58,7 +60,6 @@ typedef enum
 } WORK_STATUS;
 
 void initNixieDriver();
-void calcNixieData(uint8_t digits, uint8_t num);
-void displayNixie(uint8_t *digits);
+void displayNixie(const uint8_t *digits);
 void initLED();
 void init_I2C();
