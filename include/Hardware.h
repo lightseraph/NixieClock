@@ -13,7 +13,7 @@
 #define LED_TYPE WS2812B
 #define COLOR_ORDER GRB
 #define LED_DATA 27
-#define LED_BRIGHTNESS 150
+#define LED_BRIGHTNESS 200
 
 /*-------------Nixie---------------*/
 
@@ -43,7 +43,8 @@
 #define FADE_TIME 700.0      // ms
 #define SPI_RATE 9 * 1000000 // 9MHz
 
-#define TIME_UPDATE_INTERVAL 172800 // 2天
+#define TIME_UPDATE_INTERVAL 86400 // 1天
+#define TEMPSENSOR_ERROR 7.0
 
 const uint8_t fadein_blank[4] = {10};
 

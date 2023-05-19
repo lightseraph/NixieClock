@@ -30,7 +30,13 @@ void init_I2C()
     rtc.disable32K();
     rtc.writeSqwPinMode(DS3231_SquareWave1Hz);
 
-    sht31.begin();
+    if (!sht31.begin())
+    {
+        Serial.println("Couldn't find SHT");
+        Serial.flush();
+        while (1)
+            delay(100);
+    }
 }
 
 void initLED()

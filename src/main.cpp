@@ -5,7 +5,7 @@
 #include <time.h>
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 28800, 86400000);
+NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 28800);
 extern AutoConnect Portal;
 extern CRGB leds[NUM_LEDS];
 CHSV color;
@@ -26,12 +26,13 @@ uint8_t fadeout_num[4] = {0};
 uint8_t set_num[4] = {0};
 uint8_t displayStatus_Flag = 0;
 WORK_STATUS work_status = DISP_HOUR_MIN;
-uint8_t set_hue; // 0:fixed, 1:increase, 2:decrease
+uint8_t set_hue = 0; // 0:fixed, 1:increase, 2:decrease
 uint8_t dp_count = 0;
 bool halfSQW = false;
 bool colorChanged;
 uint8_t humidity_count = 0;
 uint16_t dp_limit;
+float f_hum, f_temp;
 
 void flash_led();
 void updateRTC();
@@ -124,9 +125,9 @@ void setup()
   // put your setup code here, to run once:
   Serial.begin(115200);
 
-  pinMode(IR_PIN, INPUT);
-  // pinMode(IR_PIN, INPUT_PULLUP);
-  // pinMode(RADAR, INPUT);
+  // pinMode(IR_PIN, INPUT);
+  pinMode(IR_PIN, INPUT_PULLUP);
+  pinMode(RADAR, INPUT);
 
   pinMode(HV_ENABLE, OUTPUT);
   pinMode(DOT, OUTPUT);
@@ -144,7 +145,7 @@ void setup()
   settings.init();
 
   attachInterrupt(digitalPinToInterrupt(SQW), onSQW, RISING);
-  // attachInterrupt(digitalPinToInterrupt(RADAR), onRADAR_ACT, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(RADAR), onRADAR_ACT, CHANGE);
   color = settings.getColor();
   colorChanged = true;
 
@@ -163,11 +164,10 @@ void setup()
   startWifiWithWebServer();
   irrecv.enableIRIn();
   timeClient.begin();
-  set_hue = 0;
   timerAlarmEnable(timer_PWM);
   flash_led();
   digitalWrite(HV_ENABLE, LOW);
-  Serial.println("hardware setup success!");
+  Serial.println("Hardware setup success!");
 }
 
 void loop()
@@ -217,10 +217,10 @@ void loop()
           settings.mOpen_time[2] == 0 &&
           settings.mOpen_time[3] == 0))
     {
-      if (settings.mOpen_time[0] == (date[13] - '0') &&
-          settings.mOpen_time[1] == (date[12] - '0') &&
-          settings.mOpen_time[2] == (date[10] - '0') &&
-          settings.mOpen_time[3] == (date[9] - '0'))
+      if (settings.mOpen_time[0] == (date[10] - '0') &&
+          settings.mOpen_time[1] == (date[9] - '0') &&
+          settings.mOpen_time[2] == (date[7] - '0') &&
+          settings.mOpen_time[3] == (date[6] - '0'))
       {
         if (digitalRead(HV_ENABLE) == HIGH)
           digitalWrite(HV_ENABLE, LOW);
@@ -232,10 +232,10 @@ void loop()
           settings.mClose_time[2] == 0 &&
           settings.mClose_time[3] == 0))
     {
-      if (settings.mClose_time[0] == (date[13] - '0') &&
-          settings.mClose_time[1] == (date[12] - '0') &&
-          settings.mClose_time[2] == (date[10] - '0') &&
-          settings.mClose_time[3] == (date[9] - '0'))
+      if (settings.mClose_time[0] == (date[10] - '0') &&
+          settings.mClose_time[1] == (date[9] - '0') &&
+          settings.mClose_time[2] == (date[7] - '0') &&
+          settings.mClose_time[3] == (date[6] - '0'))
       {
         if (digitalRead(HV_ENABLE) == LOW)
           digitalWrite(HV_ENABLE, HIGH);
@@ -245,35 +245,34 @@ void loop()
     switch (work_status)
     {
     case DISP_MIN_SEC:
-      fadein_num[1] = date[9] - '0';
-      fadein_num[0] = date[10] - '0';
-      fadein_num[3] = date[12] - '0';
-      fadein_num[2] = date[13] - '0';
-      break;
-    case DISP_HOUR_MIN:
-      fadein_num[1] = date[6] - '0';
-      fadein_num[0] = date[7] - '0';
       fadein_num[3] = date[9] - '0';
       fadein_num[2] = date[10] - '0';
+      fadein_num[1] = date[12] - '0';
+      fadein_num[0] = date[13] - '0';
+      break;
+    case DISP_HOUR_MIN:
+      fadein_num[3] = date[6] - '0';
+      fadein_num[2] = date[7] - '0';
+      fadein_num[1] = date[9] - '0';
+      fadein_num[0] = date[10] - '0';
       break;
     case DISP_MONTH:
-      fadein_num[1] = date[0] - '0';
-      fadein_num[0] = date[1] - '0';
-      fadein_num[3] = date[3] - '0';
-      fadein_num[2] = date[4] - '0';
+      fadein_num[3] = date[0] - '0';
+      fadein_num[2] = date[1] - '0';
+      fadein_num[1] = date[3] - '0';
+      fadein_num[0] = date[4] - '0';
       break;
     case DISP_TEMP_HUMIDITY:
-      float fTemp_hum;
       digitalWrite(IN3_COMMA, HIGH);
-
+      float fTemp_hum;
       if (((humidity_count / 5) % 2) == 0) // 每5秒切换一次温度湿度显示，温度显示冒号亮，湿度显示冒号灭
       {
-        fTemp_hum = sht31.readTemperature();
+        fTemp_hum = f_temp;
         digitalWrite(DOT, HIGH);
       }
       else
       {
-        fTemp_hum = sht31.readHumidity();
+        fTemp_hum = f_hum;
         digitalWrite(DOT, LOW);
       }
 
@@ -283,7 +282,7 @@ void loop()
       fadein_num[0] = (((int)(fTemp_hum * 100)) % 100) % 10;
 
       humidity_count++;
-      if (humidity_count == 60) // 持续显示60秒后返回显示时间
+      if (humidity_count == 30) // 持续显示30秒后返回显示时间
         work_status = DISP_HOUR_MIN;
       break;
     }
@@ -415,8 +414,6 @@ void loop()
     if (results.command == 0x4a) // 9 --- HV
     {
       digitalWrite(HV_ENABLE, !digitalRead(HV_ENABLE));
-      // digitalWrite(DOT, !digitalRead(DOT));
-      //  delay(45);
     }
     if (results.command == 0x0C) // 1 ---
     {
@@ -442,6 +439,8 @@ void loop()
     if (results.command == 0x08) // 4 ---
     {
       work_status = DISP_TEMP_HUMIDITY;
+      f_hum = sht31.readHumidity();
+      f_temp = sht31.readTemperature() - TEMPSENSOR_ERROR;
       if (halfSQW)
         useHalfSQW(false);
       humidity_count = 0;
@@ -454,6 +453,7 @@ void loop()
         work_status = DISP_HOUR_MIN;
         settings.putTime(set_num, OPEN_TIME);
         useHalfSQW(false);
+        flash_led();
       }
       else if (work_status == SET_OPEN_TIME_HOUR)
       {
@@ -474,6 +474,7 @@ void loop()
         work_status = DISP_HOUR_MIN;
         settings.putTime(set_num, CLOSE_TIME);
         useHalfSQW(false);
+        flash_led();
       }
       else if (work_status == SET_CLOSE_TIME_HOUR)
       {
@@ -488,7 +489,19 @@ void loop()
     }
 
     if (results.command == 0x16) // 0 ---手动DP，持续十次
-      startDP(10);
+    {
+      // 设置开关机时间模式时，按0复位设置
+      if (work_status == SET_CLOSE_TIME_HOUR ||
+          work_status == SET_OPEN_TIME_HOUR ||
+          work_status == SET_CLOSE_TIME_MIN ||
+          work_status == SET_OPEN_TIME_MIN)
+      {
+        for (int i = 0; i < 4; i++)
+          set_num[i] = 0;
+      }
+      else
+        startDP(10);
+    }
 
     // 有红外信号时，闪烁LED
     fill_solid(leds, 4, CRGB::Black);
@@ -518,7 +531,18 @@ void loop()
     fill_solid(leds, 4, color);
     FastLED.show();
     colorChanged = false;
-    delay(30);
+    delay(35);
+  }
+
+  if (digitalRead(HV_ENABLE) == HIGH)
+  {
+    fill_solid(leds, 4, CRGB::Black);
+    FastLED.show();
+  }
+  else
+  {
+    fill_solid(leds, 4, color);
+    FastLED.show();
   }
   // 主循环所有分支均依靠条件分支，无常态延时
 }

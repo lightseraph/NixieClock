@@ -53,8 +53,9 @@ void startWifiWithWebServer()
   Config.bootUri = AC_ONBOOTURI_ROOT;
   Portal.config(Config);
   Portal.begin();
-  // while (true)
-  //  Portal.handleClient();
+
+  Serial.println("Connect Success!");
+  Serial.println(WiFi.localIP());
 }
 
 void startWifiWithoutWebServer()

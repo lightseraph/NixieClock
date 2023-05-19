@@ -47,6 +47,7 @@ void Settings::getTime(uint8_t *time, uint8_t on_off)
         time[2] = getUChar("c_h", 0) % 10;
         time[1] = getUChar("c_m", 0) / 10;
         time[0] = getUChar("c_m", 0) % 10;
+        memcpy(mClose_time, time, 4 * sizeof(uint8_t));
     }
     else if (on_off == OPEN_TIME)
     {
@@ -54,6 +55,7 @@ void Settings::getTime(uint8_t *time, uint8_t on_off)
         time[2] = getUChar("o_h", 0) % 10;
         time[1] = getUChar("o_m", 0) / 10;
         time[0] = getUChar("o_m", 0) % 10;
+        memcpy(mOpen_time, time, 4 * sizeof(uint8_t));
     }
 }
 
@@ -64,11 +66,13 @@ void Settings::putTime(const uint8_t *time, uint8_t on_off)
     {
         putUChar("c_h", time[3] * 10 + time[2]);
         putUChar("c_m", time[1] * 10 + time[0]);
+        memcpy(mClose_time, time, 4 * sizeof(uint8_t));
     }
     else if (on_off == OPEN_TIME)
     {
         putUChar("o_h", time[3] * 10 + time[2]);
         putUChar("o_m", time[1] * 10 + time[0]);
+        memcpy(mOpen_time, time, 4 * sizeof(uint8_t));
     }
 }
 
