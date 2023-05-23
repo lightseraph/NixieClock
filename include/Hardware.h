@@ -43,7 +43,7 @@
 #define FADE_TIME 700.0      // ms
 #define SPI_RATE 9 * 1000000 // 9MHz
 
-#define TIME_UPDATE_INTERVAL 86400 // 1天
+#define TIME_UPDATE_INTERVAL 42300 // 0.5天
 
 const uint8_t fadein_blank[4] = {10};
 

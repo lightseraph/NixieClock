@@ -34,6 +34,7 @@ uint8_t humidity_count = 0;
 uint16_t dp_limit;
 float f_hum, f_temp;
 uint8_t th_error;
+uint8_t set_count = 0;
 
 void flash_led();
 void updateRTC();
@@ -89,8 +90,8 @@ void IRAM_ATTR onSQW()
   if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR ||
       work_status == SET_TERROR_INT || work_status == SET_HERROR_INT)
   {
+    set_count++;
     fade_pwm = 255;
-    // digitalWrite(DOT, HIGH);
     displayStatus_Flag = 0;
     if (digitalRead(SQW) == HIGH)
       memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
@@ -103,8 +104,8 @@ void IRAM_ATTR onSQW()
   else if (work_status == SET_CLOSE_TIME_MIN || work_status == SET_OPEN_TIME_MIN ||
            work_status == SET_TERROR_DEC || work_status == SET_HERROR_DEC)
   {
+    set_count++;
     fade_pwm = 255;
-    // digitalWrite(DOT, HIGH);
     displayStatus_Flag = 0;
     if (digitalRead(SQW) == HIGH)
       memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
@@ -179,7 +180,10 @@ void loop()
   // put your main code here, to run repeatedly:
 
   // 不显示温度湿度状态关闭小数点
-  if (work_status != DISP_TEMP_HUMIDITY && HIGH == digitalRead(IN3_COMMA))
+  if (work_status != DISP_TEMP_HUMIDITY &&
+      work_status != SET_HERROR_DEC && work_status != SET_HERROR_INT &&
+      work_status != SET_TERROR_DEC && work_status != SET_TERROR_INT &&
+      HIGH == digitalRead(IN3_COMMA))
     digitalWrite(IN3_COMMA, LOW);
 
   // 主循环里判断PWM占空比是否变到100
@@ -198,6 +202,16 @@ void loop()
     dp_count = 0;
     fade_pwm = 0;
     displayStatus_Flag = 1;
+  }
+
+  // 进入设置参数状态后，没有输入20秒后自动返回显示时间
+  if (set_count > 40)
+  {
+    set_count = 0;
+    work_status = DISP_HOUR_MIN;
+    fade_pwm = 0;
+    displayStatus_Flag = 1;
+    useHalfSQW(false);
   }
 
   if (displayStatus_Flag)
@@ -336,6 +350,7 @@ void loop()
     {
       if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR)
       {
+        set_count = 0;
         uint8_t temp = set_num[3] * 10 + set_num[2];
         temp++;
         if (temp == 24)
@@ -345,6 +360,7 @@ void loop()
       }
       else if (work_status == SET_CLOSE_TIME_MIN || work_status == SET_OPEN_TIME_MIN)
       {
+        set_count = 0;
         uint8_t temp = set_num[1] * 10 + set_num[0];
         temp++;
         if (temp == 60)
@@ -354,17 +370,19 @@ void loop()
       }
       else if (work_status == SET_HERROR_DEC || work_status == SET_TERROR_DEC)
       {
+        set_count = 0;
         th_error++;
         set_num[3] = th_error / 100;
-        set_num[2] = th_error / 10;
+        set_num[2] = th_error % 100 / 10;
         set_num[1] = th_error % 10;
         set_num[0] = 0;
       }
       else if (work_status == SET_HERROR_INT || work_status == SET_TERROR_INT)
       {
+        set_count = 0;
         th_error += 10;
         set_num[3] = th_error / 100;
-        set_num[2] = th_error / 10;
+        set_num[2] = th_error % 100 / 10;
         set_num[1] = th_error % 10;
         set_num[0] = 0;
       }
@@ -381,6 +399,7 @@ void loop()
     {
       if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR)
       {
+        set_count = 0;
         uint8_t temp = set_num[3] * 10 + set_num[2];
         if (temp == 0)
           temp = 23;
@@ -391,6 +410,7 @@ void loop()
       }
       else if (work_status == SET_CLOSE_TIME_MIN || work_status == SET_OPEN_TIME_MIN)
       {
+        set_count = 0;
         uint8_t temp = set_num[1] * 10 + set_num[0];
         if (temp == 0)
           temp = 59;
@@ -401,6 +421,7 @@ void loop()
       }
       else if (work_status == SET_HERROR_DEC || work_status == SET_TERROR_DEC)
       {
+        set_count = 0;
         th_error--;
         set_num[3] = th_error / 100;
         set_num[2] = th_error % 100 / 10;
@@ -409,6 +430,7 @@ void loop()
       }
       else if (work_status == SET_HERROR_INT || work_status == SET_TERROR_INT)
       {
+        set_count = 0;
         th_error -= 10;
         set_num[3] = th_error / 100;
         set_num[2] = th_error % 100 / 10;
@@ -477,16 +499,18 @@ void loop()
     if (results.command == 0x08) // 4 ---
     {
       work_status = DISP_TEMP_HUMIDITY;
-      f_hum = sht31.readHumidity() + settings.mHerror;
-      f_temp = sht31.readTemperature() - settings.mTerror;
+      f_hum = sht31.readHumidity() + settings.mHerror / 10.0f;
+      f_temp = sht31.readTemperature() - settings.mTerror / 10.0f;
       if (halfSQW)
         useHalfSQW(false);
       humidity_count = 0;
     }
 
-    if (results.command == 0x5A) // 5 ---设置温度校正
+    if (results.command == 0x1C) // 5 ---设置温度校正
     {
+      set_count = 0;
       digitalWrite(IN3_COMMA, HIGH);
+      digitalWrite(DOT, HIGH);
       if (work_status == SET_TERROR_DEC)
       {
         work_status = DISP_HOUR_MIN;
@@ -512,7 +536,9 @@ void loop()
 
     if (results.command == 0x5A) // 6 ---设置湿度校正
     {
+      set_count = 0;
       digitalWrite(IN3_COMMA, HIGH);
+      digitalWrite(DOT, LOW);
       if (work_status == SET_HERROR_DEC)
       {
         work_status = DISP_HOUR_MIN;
@@ -539,6 +565,7 @@ void loop()
 
     if (results.command == 0x42) // 7 ---设置自动开机时间
     {
+      set_count = 0;
       digitalWrite(DOT, HIGH);
       if (work_status == SET_OPEN_TIME_MIN)
       {
@@ -562,6 +589,7 @@ void loop()
 
     if (results.command == 0x52) // 8 ---设置自动关机时间
     {
+      set_count = 0;
       digitalWrite(DOT, LOW);
       if (work_status == SET_CLOSE_TIME_MIN)
       {
@@ -600,10 +628,9 @@ void loop()
     // 有红外信号时，闪烁LED
     fill_solid(leds, 4, CRGB::Black);
     FastLED.show();
-    delay(30);
+    delay(20);
     fill_solid(leds, 4, color);
     FastLED.show();
-    delay(20);
     irrecv.resume(); // Receive the next value
   }
 

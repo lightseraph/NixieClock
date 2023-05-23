@@ -139,5 +139,5 @@ uint8_t Settings::getHerror(void)
 void Settings::putHerror(const uint8_t hError)
 {
     putUChar("h_error", hError);
-    mTerror = hError;
+    mHerror = hError;
 }
