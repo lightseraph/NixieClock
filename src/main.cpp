@@ -33,6 +33,7 @@ bool colorChanged;
 uint8_t humidity_count = 0;
 uint16_t dp_limit;
 float f_hum, f_temp;
+uint8_t th_error;
 
 void flash_led();
 void updateRTC();
@@ -85,10 +86,11 @@ void IRAM_ATTR onSQW()
 {
   timerAlarmEnable(timer_fade);
 
-  if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR)
+  if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR ||
+      work_status == SET_TERROR_INT || work_status == SET_HERROR_INT)
   {
     fade_pwm = 255;
-    digitalWrite(DOT, HIGH);
+    // digitalWrite(DOT, HIGH);
     displayStatus_Flag = 0;
     if (digitalRead(SQW) == HIGH)
       memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
@@ -98,10 +100,11 @@ void IRAM_ATTR onSQW()
       fadein_num[3] = 10;
     }
   }
-  else if (work_status == SET_CLOSE_TIME_MIN || work_status == SET_OPEN_TIME_MIN)
+  else if (work_status == SET_CLOSE_TIME_MIN || work_status == SET_OPEN_TIME_MIN ||
+           work_status == SET_TERROR_DEC || work_status == SET_HERROR_DEC)
   {
     fade_pwm = 255;
-    digitalWrite(DOT, HIGH);
+    // digitalWrite(DOT, HIGH);
     displayStatus_Flag = 0;
     if (digitalRead(SQW) == HIGH)
       memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
@@ -204,7 +207,7 @@ void loop()
     rtc_dt.toString(date);
     Serial.println(date);
 
-    // 从NTP更新时间间隔超过2天，自动更新一次
+    // 从NTP更新时间间隔超过1天，自动更新一次
     if (rtc_dt.unixtime() - settings.mLastupdate > TIME_UPDATE_INTERVAL)
     {
       updateRTC();
@@ -349,6 +352,22 @@ void loop()
         set_num[1] = temp / 10;
         set_num[0] = temp % 10;
       }
+      else if (work_status == SET_HERROR_DEC || work_status == SET_TERROR_DEC)
+      {
+        th_error++;
+        set_num[3] = th_error / 100;
+        set_num[2] = th_error / 10;
+        set_num[1] = th_error % 10;
+        set_num[0] = 0;
+      }
+      else if (work_status == SET_HERROR_INT || work_status == SET_TERROR_INT)
+      {
+        th_error += 10;
+        set_num[3] = th_error / 100;
+        set_num[2] = th_error / 10;
+        set_num[1] = th_error % 10;
+        set_num[0] = 0;
+      }
       else
       {
         if (color.val < 245)
@@ -380,6 +399,23 @@ void loop()
         set_num[1] = temp / 10;
         set_num[0] = temp % 10;
       }
+      else if (work_status == SET_HERROR_DEC || work_status == SET_TERROR_DEC)
+      {
+        th_error--;
+        set_num[3] = th_error / 100;
+        set_num[2] = th_error % 100 / 10;
+        set_num[1] = th_error % 10;
+        set_num[0] = 0;
+      }
+      else if (work_status == SET_HERROR_INT || work_status == SET_TERROR_INT)
+      {
+        th_error -= 10;
+        set_num[3] = th_error / 100;
+        set_num[2] = th_error % 100 / 10;
+        set_num[1] = th_error % 10;
+        set_num[0] = 0;
+      }
+
       else
       {
         if (color.val > 10)
@@ -411,10 +447,12 @@ void loop()
       colorChanged = true;
       flash_led();
     }
+
     if (results.command == 0x4a) // 9 --- HV
     {
       digitalWrite(HV_ENABLE, !digitalRead(HV_ENABLE));
     }
+
     if (results.command == 0x0C) // 1 ---
     {
       work_status = DISP_MIN_SEC;
@@ -439,21 +477,76 @@ void loop()
     if (results.command == 0x08) // 4 ---
     {
       work_status = DISP_TEMP_HUMIDITY;
-      f_hum = sht31.readHumidity();
-      f_temp = sht31.readTemperature() - TEMPSENSOR_ERROR;
+      f_hum = sht31.readHumidity() + settings.mHerror;
+      f_temp = sht31.readTemperature() - settings.mTerror;
       if (halfSQW)
         useHalfSQW(false);
       humidity_count = 0;
     }
 
-    if (results.command == 0x5A) // 6 ---设置自动开机时间
+    if (results.command == 0x5A) // 5 ---设置温度校正
     {
+      digitalWrite(IN3_COMMA, HIGH);
+      if (work_status == SET_TERROR_DEC)
+      {
+        work_status = DISP_HOUR_MIN;
+        settings.putTerror(th_error);
+        flash_led();
+        useHalfSQW(false);
+      }
+      else if (work_status == SET_TERROR_INT)
+      {
+        work_status = SET_TERROR_DEC;
+      }
+      else
+      {
+        work_status = SET_TERROR_INT;
+        th_error = settings.getTerror();
+        set_num[3] = th_error / 100;
+        set_num[2] = th_error % 100 / 10;
+        set_num[1] = th_error % 10;
+        set_num[0] = 0;
+        useHalfSQW(true);
+      }
+    }
+
+    if (results.command == 0x5A) // 6 ---设置湿度校正
+    {
+      digitalWrite(IN3_COMMA, HIGH);
+      if (work_status == SET_HERROR_DEC)
+      {
+        work_status = DISP_HOUR_MIN;
+        settings.putHerror(th_error);
+        flash_led();
+        digitalWrite(IN3_COMMA, LOW);
+        useHalfSQW(false);
+      }
+      else if (work_status == SET_HERROR_INT)
+      {
+        work_status = SET_HERROR_DEC;
+      }
+      else
+      {
+        work_status = SET_HERROR_INT;
+        th_error = settings.getHerror();
+        set_num[3] = th_error / 100;
+        set_num[2] = th_error % 100 / 10;
+        set_num[1] = th_error % 10;
+        set_num[0] = 0;
+        useHalfSQW(true);
+      }
+    }
+
+    if (results.command == 0x42) // 7 ---设置自动开机时间
+    {
+      digitalWrite(DOT, HIGH);
       if (work_status == SET_OPEN_TIME_MIN)
       {
         work_status = DISP_HOUR_MIN;
         settings.putTime(set_num, OPEN_TIME);
         useHalfSQW(false);
         flash_led();
+        digitalWrite(IN3_COMMA, LOW);
       }
       else if (work_status == SET_OPEN_TIME_HOUR)
       {
@@ -467,8 +560,9 @@ void loop()
       }
     }
 
-    if (results.command == 0x42) // 7 ---设置自动关机时间
+    if (results.command == 0x52) // 8 ---设置自动关机时间
     {
+      digitalWrite(DOT, LOW);
       if (work_status == SET_CLOSE_TIME_MIN)
       {
         work_status = DISP_HOUR_MIN;
@@ -509,6 +603,7 @@ void loop()
     delay(30);
     fill_solid(leds, 4, color);
     FastLED.show();
+    delay(20);
     irrecv.resume(); // Receive the next value
   }
 

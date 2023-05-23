@@ -18,6 +18,8 @@ void Settings::init()
     mOpen_time[3] = getUChar("o_m", 0) % 10;
 
     mLastupdate = getUInt("last_update", 0);
+    mTerror = getUChar("t_error", 75);
+    mHerror = getUChar("h_error", 120);
 }
 
 // 设置LED灯色
@@ -114,4 +116,28 @@ void Settings::putLastUpdate(uint32_t secondstime)
 {
     putUInt("last_update", secondstime);
     mLastupdate = secondstime;
+}
+
+uint8_t Settings::getTerror(void)
+{
+    mTerror = getUChar("t_error", 75);
+    return mTerror;
+}
+
+void Settings::putTerror(const uint8_t tError)
+{
+    putUChar("t_error", tError);
+    mTerror = tError;
+}
+
+uint8_t Settings::getHerror(void)
+{
+    mHerror = getUChar("h_error", 120);
+    return mHerror;
+}
+
+void Settings::putHerror(const uint8_t hError)
+{
+    putUChar("h_error", hError);
+    mTerror = hError;
 }
