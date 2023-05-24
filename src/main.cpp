@@ -35,6 +35,8 @@ uint16_t dp_limit;
 float f_hum, f_temp;
 uint8_t th_error;
 uint8_t set_count = 0;
+uint32_t working_time;
+uint8_t working_time_count = 0;
 
 void flash_led();
 void updateRTC();
@@ -86,6 +88,8 @@ void IRAM_ATTR onTimer_DP()
 void IRAM_ATTR onSQW()
 {
   timerAlarmEnable(timer_fade);
+  if (digitalRead(HV_ENABLE) == LOW)
+    working_time++;
 
   if (work_status == SET_CLOSE_TIME_HOUR || work_status == SET_OPEN_TIME_HOUR ||
       work_status == SET_TERROR_INT || work_status == SET_HERROR_INT)
@@ -120,6 +124,8 @@ void IRAM_ATTR onSQW()
     fade_pwm = 0;
     if (work_status != DISP_TEMP_HUMIDITY)
       digitalWrite(DOT, !digitalRead(DOT));
+    if (work_status == DISP_WORKING_TIME)
+      digitalWrite(DOT, LOW);
     displayStatus_Flag = 1;
   }
 }
@@ -171,6 +177,7 @@ void setup()
   timerAlarmEnable(timer_PWM);
   flash_led();
   digitalWrite(HV_ENABLE, LOW);
+  working_time = settings.mWorkingTime;
   Serial.println("Hardware setup success!");
 }
 
@@ -300,6 +307,18 @@ void loop()
 
       humidity_count++;
       if (humidity_count == 30) // 持续显示30秒后返回显示时间
+        work_status = DISP_HOUR_MIN;
+      break;
+
+    case DISP_WORKING_TIME:
+      uint16_t working_hours = working_time / 3600;
+      fadein_num[3] = working_hours / 1000;
+      fadein_num[2] = working_hours % 1000 / 100;
+      fadein_num[1] = working_hours % 1000 % 100 / 10;
+      fadein_num[0] = working_hours % 1000 % 100 % 10;
+
+      working_time_count++;
+      if (working_time_count == 10)
         work_status = DISP_HOUR_MIN;
       break;
     }
@@ -625,6 +644,14 @@ void loop()
         startDP(10);
     }
 
+    if (results.command == 0x19) // 100+ ---显示辉光管总工作时间
+    {
+      work_status = DISP_WORKING_TIME;
+      working_time_count = 0;
+      if (halfSQW)
+        useHalfSQW(false);
+    }
+
     // 有红外信号时，闪烁LED
     fill_solid(leds, 4, CRGB::Black);
     FastLED.show();
@@ -684,11 +711,15 @@ void flash_led()
 
 void updateRTC()
 {
-  timeClient.forceUpdate();
-  Serial.println(timeClient.getFormattedTime());
-  DateTime dt(timeClient.getEpochTime());
-  rtc.adjust(dt);
+  do
+  {
+    timeClient.forceUpdate();
+    DateTime dt(timeClient.getEpochTime());
+    rtc.adjust(dt);
+  } while (rtc.now().year() == 2006); // NTP更新时间时，不明原因导致更新结果为2006-2-6 14：28,检查更新结果
+
   settings.putLastUpdate(timeClient.getEpochTime());
+  settings.putWorkingTime(working_time);
 }
 
 void startDP(uint8_t repeat)

@@ -43,7 +43,7 @@
 #define FADE_TIME 700.0      // ms
 #define SPI_RATE 9 * 1000000 // 9MHz
 
-#define TIME_UPDATE_INTERVAL 42300 // 0.5天
+#define TIME_UPDATE_INTERVAL 84600 // 0.5天
 
 const uint8_t fadein_blank[4] = {10};
 
@@ -53,6 +53,7 @@ typedef enum
     DISP_HOUR_MIN,
     DISP_MONTH,
     DISP_TEMP_HUMIDITY,
+    DISP_WORKING_TIME,
     SET_OPEN_TIME_HOUR,
     SET_OPEN_TIME_MIN,
     SET_CLOSE_TIME_HOUR,
