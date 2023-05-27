@@ -33,10 +33,11 @@ bool colorChanged;
 uint8_t humidity_count = 0;
 uint16_t dp_limit;
 float f_hum, f_temp;
-uint8_t th_error;
+uint16_t th_error;
 uint8_t set_count = 0;
 uint32_t working_time;
 uint8_t working_time_count = 0;
+uint8_t disp_ip_count = 0;
 
 void flash_led();
 void updateRTC();
@@ -136,8 +137,7 @@ void setup()
   Serial.begin(115200);
 
   // pinMode(IR_PIN, INPUT);
-  pinMode(IR_PIN, INPUT_PULLUP);
-  pinMode(RADAR, INPUT);
+  pinMode(RADAR, INPUT_PULLDOWN);
 
   pinMode(HV_ENABLE, OUTPUT);
   pinMode(DOT, OUTPUT);
@@ -172,7 +172,7 @@ void setup()
   timerAlarmWrite(timer_DP, 300000, true); // 解毒数字循环周期 300ms
 
   startWifiWithWebServer();
-  irrecv.enableIRIn();
+  irrecv.enableIRIn(true);
   timeClient.begin();
   timerAlarmEnable(timer_PWM);
   flash_led();
@@ -244,10 +244,14 @@ void loop()
       if (settings.mOpen_time[0] == (date[10] - '0') &&
           settings.mOpen_time[1] == (date[9] - '0') &&
           settings.mOpen_time[2] == (date[7] - '0') &&
-          settings.mOpen_time[3] == (date[6] - '0'))
+          settings.mOpen_time[3] == (date[6] - '0') &&
+          (date[12] - '0') == 0)
       {
         if (digitalRead(HV_ENABLE) == HIGH)
+        {
+          attachInterrupt(digitalPinToInterrupt(RADAR), onRADAR_ACT, CHANGE);
           digitalWrite(HV_ENABLE, LOW);
+        }
       }
     }
 
@@ -259,10 +263,14 @@ void loop()
       if (settings.mClose_time[0] == (date[10] - '0') &&
           settings.mClose_time[1] == (date[9] - '0') &&
           settings.mClose_time[2] == (date[7] - '0') &&
-          settings.mClose_time[3] == (date[6] - '0'))
+          settings.mClose_time[3] == (date[6] - '0') &&
+          (date[12] - '0') == 0)
       {
         if (digitalRead(HV_ENABLE) == LOW)
+        {
           digitalWrite(HV_ENABLE, HIGH);
+          detachInterrupt(digitalPinToInterrupt(RADAR));
+        }
       }
     }
 
@@ -285,6 +293,9 @@ void loop()
       fadein_num[2] = date[1] - '0';
       fadein_num[1] = date[3] - '0';
       fadein_num[0] = date[4] - '0';
+      humidity_count++;
+      if (humidity_count == 10) // 持续显示10秒后返回显示时间, 借用humidity_count变量
+        work_status = DISP_HOUR_MIN;
       break;
     case DISP_TEMP_HUMIDITY:
       digitalWrite(IN3_COMMA, HIGH);
@@ -306,11 +317,12 @@ void loop()
       fadein_num[0] = (((int)(fTemp_hum * 100)) % 100) % 10;
 
       humidity_count++;
-      if (humidity_count == 30) // 持续显示30秒后返回显示时间
+      if (humidity_count == 20) // 持续显示20秒后返回显示时间
         work_status = DISP_HOUR_MIN;
       break;
 
     case DISP_WORKING_TIME:
+    {
       uint16_t working_hours = working_time / 3600;
       fadein_num[3] = working_hours / 1000;
       fadein_num[2] = working_hours % 1000 / 100;
@@ -318,14 +330,33 @@ void loop()
       fadein_num[0] = working_hours % 1000 % 100 % 10;
 
       working_time_count++;
-      if (working_time_count == 10)
+      if (working_time_count == 6)
         work_status = DISP_HOUR_MIN;
       break;
+    }
+
+    case DISP_IP:
+    {
+      uint8_t ip = WiFi.localIP()[disp_ip_count / 2];
+      fadein_num[3] = 0;
+      fadein_num[2] = ip / 100;
+      fadein_num[1] = ip % 100 / 10;
+      fadein_num[0] = ip % 10;
+      if (disp_ip_count > 6)
+      {
+        work_status = DISP_HOUR_MIN;
+        disp_ip_count = 0;
+      }
+      else
+        disp_ip_count++;
+      break;
+    }
     }
     displayStatus_Flag = 0;
 
     // 分钟数字被5整除调用一次解毒
-    if ((date[10] - '0') % 5 == 0 && (date[12] - '0') == 0 && (date[13] - '0') == 0)
+    if (((date[10] - '0') + 1) % 5 == 0 && (date[12] - '0') == 5 && (date[13] - '0') == 9 &&
+        (work_status == DISP_HOUR_MIN || work_status == DISP_MIN_SEC))
       startDP(1);
   }
 
@@ -491,7 +522,16 @@ void loop()
 
     if (results.command == 0x4a) // 9 --- HV
     {
-      digitalWrite(HV_ENABLE, !digitalRead(HV_ENABLE));
+      if (digitalRead(HV_ENABLE) == LOW)
+      {
+        digitalWrite(HV_ENABLE, HIGH);
+        detachInterrupt(digitalPinToInterrupt(RADAR));
+      }
+      else
+      {
+        attachInterrupt(digitalPinToInterrupt(RADAR), onRADAR_ACT, CHANGE);
+        digitalWrite(HV_ENABLE, LOW);
+      }
     }
 
     if (results.command == 0x0C) // 1 ---
@@ -511,6 +551,7 @@ void loop()
     if (results.command == 0x5E) // 3 ---
     {
       work_status = DISP_MONTH;
+      humidity_count = 0;
       if (halfSQW)
         useHalfSQW(false);
     }
@@ -652,10 +693,16 @@ void loop()
         useHalfSQW(false);
     }
 
+    if (results.command == 0x0D) // 200+ ---显示IP
+    {
+      work_status = DISP_IP;
+      disp_ip_count = 0;
+    }
+
     // 有红外信号时，闪烁LED
     fill_solid(leds, 4, CRGB::Black);
     FastLED.show();
-    delay(20);
+    delay(35);
     fill_solid(leds, 4, color);
     FastLED.show();
     irrecv.resume(); // Receive the next value

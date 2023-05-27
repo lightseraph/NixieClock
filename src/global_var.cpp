@@ -18,8 +18,8 @@ void Settings::init()
     mOpen_time[3] = getUChar("o_m", 0) % 10;
 
     mLastupdate = getUInt("last_update", 0);
-    mTerror = getUChar("t_error", 75);
-    mHerror = getUChar("h_error", 120);
+    mTerror = getUShort("t_error", 75);
+    mHerror = getUShort("h_error", 120);
     mWorkingTime = getUInt("working_time", 0);
 }
 
@@ -119,27 +119,27 @@ void Settings::putLastUpdate(uint32_t secondstime)
     mLastupdate = secondstime;
 }
 
-uint8_t Settings::getTerror(void)
+uint16_t Settings::getTerror(void)
 {
-    mTerror = getUChar("t_error", 75);
+    mTerror = getUShort("t_error", 75);
     return mTerror;
 }
 
-void Settings::putTerror(const uint8_t tError)
+void Settings::putTerror(const uint16_t tError)
 {
-    putUChar("t_error", tError);
+    putUShort("t_error", tError);
     mTerror = tError;
 }
 
-uint8_t Settings::getHerror(void)
+uint16_t Settings::getHerror(void)
 {
-    mHerror = getUChar("h_error", 120);
+    mHerror = getUShort("h_error", 120);
     return mHerror;
 }
 
-void Settings::putHerror(const uint8_t hError)
+void Settings::putHerror(const uint16_t hError)
 {
-    putUChar("h_error", hError);
+    putUShort("h_error", hError);
     mHerror = hError;
 }
 

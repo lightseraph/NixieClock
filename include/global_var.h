@@ -21,17 +21,17 @@ public:
     void putDisplayMode(uint8_t mode);
     uint32_t getLastUpdate(void);
     void putLastUpdate(uint32_t secondstime);
-    uint8_t getTerror(void);
-    void putTerror(const uint8_t tError);
-    uint8_t getHerror(void);
-    void putHerror(const uint8_t hError);
+    uint16_t getTerror(void);
+    void putTerror(const uint16_t tError);
+    uint16_t getHerror(void);
+    void putHerror(const uint16_t hError);
     void putWorkingTime(const uint32_t working_time);
     uint32_t getWorkingTime(void);
     uint32_t mLastupdate;
     uint8_t mClose_time[4];
     uint8_t mOpen_time[4];
-    uint8_t mTerror;
-    uint8_t mHerror;
+    uint16_t mTerror;
+    uint16_t mHerror;
     uint32_t mWorkingTime;
 
 private:

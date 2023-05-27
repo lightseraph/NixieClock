@@ -27,7 +27,7 @@ static const char AUX_AppPage[] PROGMEM = R"(
     {
       "name": "content",
       "type": "ACText",
-      "value": "NixieClock based on IN-8-2 , Modified By Light , rev 1"
+      "value": "NixieClock based on IN-8-2 , Powered By Light , Rev 2"
     }
   ]
 }
