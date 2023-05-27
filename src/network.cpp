@@ -72,7 +72,7 @@ void startWifiWithoutWebServer()
       break;
     }
     Serial.print(".");
-    delay(500);
+    delay(1000);
   }
   if (wifiTimeout >= 20)
     Serial.println("Failed!");

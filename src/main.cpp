@@ -270,6 +270,7 @@ void loop()
         {
           digitalWrite(HV_ENABLE, HIGH);
           detachInterrupt(digitalPinToInterrupt(RADAR));
+          settings.putWorkingTime(working_time);
         }
       }
     }
@@ -575,6 +576,7 @@ void loop()
       {
         work_status = DISP_HOUR_MIN;
         settings.putTerror(th_error);
+        settings.putWorkingTime(working_time);
         flash_led();
         useHalfSQW(false);
       }
@@ -603,6 +605,7 @@ void loop()
       {
         work_status = DISP_HOUR_MIN;
         settings.putHerror(th_error);
+        settings.putWorkingTime(working_time);
         flash_led();
         digitalWrite(IN3_COMMA, LOW);
         useHalfSQW(false);
