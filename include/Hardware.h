@@ -45,7 +45,7 @@
 
 #define TIME_UPDATE_INTERVAL 84600 // 1天
 
-const uint8_t fadein_blank[4] = {10};
+const uint8_t fadein_blank[4] = {10, 10, 10, 10};
 
 typedef enum
 {

@@ -21,9 +21,9 @@ hw_timer_t *timer_PWM = NULL;
 hw_timer_t *timer_fade = NULL;
 hw_timer_t *timer_DP = NULL;
 uint16_t fade_pwm = 0;
-uint8_t fadein_num[4] = {0};
-uint8_t fadeout_num[4] = {0};
-uint8_t set_num[4] = {0};
+uint8_t fadein_num[4] = {0, 0, 0, 0};
+uint8_t fadeout_num[4] = {0, 0, 0, 0};
+uint8_t set_num[4] = {0, 0, 0, 0};
 uint8_t displayStatus_Flag = 0;
 WORK_STATUS work_status = DISP_HOUR_MIN;
 uint8_t set_hue = 0; // 0:fixed, 1:increase, 2:decrease
@@ -81,7 +81,7 @@ void IRAM_ATTR onTimer_DP()
     fadein_num[i]++;
     fadein_num[i] %= 10;
   }
-  fade_pwm = 255;
+  fade_pwm = FADE_STEP;
   displayStatus_Flag = 0;
   dp_count++;
 }
@@ -96,7 +96,7 @@ void IRAM_ATTR onSQW()
       work_status == SET_TERROR_INT || work_status == SET_HERROR_INT)
   {
     set_count++;
-    fade_pwm = 255;
+    fade_pwm = FADE_STEP;
     displayStatus_Flag = 0;
     if (digitalRead(SQW) == HIGH)
       memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
@@ -110,7 +110,7 @@ void IRAM_ATTR onSQW()
            work_status == SET_TERROR_DEC || work_status == SET_HERROR_DEC)
   {
     set_count++;
-    fade_pwm = 255;
+    fade_pwm = FADE_STEP;
     displayStatus_Flag = 0;
     if (digitalRead(SQW) == HIGH)
       memcpy(fadein_num, set_num, 4 * sizeof(uint8_t));
@@ -574,7 +574,8 @@ void loop()
       digitalWrite(DOT, HIGH);
       if (work_status == SET_TERROR_DEC)
       {
-        work_status = DISP_HOUR_MIN;
+        work_status = DISP_TEMP_HUMIDITY;
+        humidity_count = 0;
         settings.putTerror(th_error);
         settings.putWorkingTime(working_time);
         flash_led();
@@ -603,7 +604,8 @@ void loop()
       digitalWrite(DOT, LOW);
       if (work_status == SET_HERROR_DEC)
       {
-        work_status = DISP_HOUR_MIN;
+        work_status = DISP_TEMP_HUMIDITY;
+        humidity_count = 0;
         settings.putHerror(th_error);
         settings.putWorkingTime(working_time);
         flash_led();
@@ -705,7 +707,7 @@ void loop()
     // 有红外信号时，闪烁LED
     fill_solid(leds, 4, CRGB::Black);
     FastLED.show();
-    delay(35);
+    delay(30);
     fill_solid(leds, 4, color);
     FastLED.show();
     irrecv.resume(); // Receive the next value
@@ -766,6 +768,7 @@ void updateRTC()
     timeClient.forceUpdate();
     DateTime dt(timeClient.getEpochTime());
     rtc.adjust(dt);
+    delay(1000);
   } while (rtc.now().year() == 2006); // NTP更新时间时，不明原因导致更新结果为2006-2-6 14：28,检查更新结果
 
   settings.putLastUpdate(timeClient.getEpochTime());
