@@ -223,7 +223,7 @@ void loop()
 
   if (displayStatus_Flag)
   {
-    char date[15] = "MM-DD hh:mm:ss";
+    char date[20] = "YYYY-MM-DD hh:mm:ss";
     DateTime rtc_dt = rtc.now();
     rtc_dt.toString(date);
     Serial.println(date);
@@ -241,11 +241,11 @@ void loop()
           settings.mOpen_time[2] == 0 &&
           settings.mOpen_time[3] == 0))
     {
-      if (settings.mOpen_time[0] == (date[10] - '0') &&
-          settings.mOpen_time[1] == (date[9] - '0') &&
-          settings.mOpen_time[2] == (date[7] - '0') &&
-          settings.mOpen_time[3] == (date[6] - '0') &&
-          (date[12] - '0') == 0)
+      if (settings.mOpen_time[0] == (date[15] - '0') &&
+          settings.mOpen_time[1] == (date[14] - '0') &&
+          settings.mOpen_time[2] == (date[12] - '0') &&
+          settings.mOpen_time[3] == (date[11] - '0') &&
+          (date[17] - '0') == 0)
       {
         if (digitalRead(HV_ENABLE) == HIGH)
         {
@@ -260,11 +260,11 @@ void loop()
           settings.mClose_time[2] == 0 &&
           settings.mClose_time[3] == 0))
     {
-      if (settings.mClose_time[0] == (date[10] - '0') &&
-          settings.mClose_time[1] == (date[9] - '0') &&
-          settings.mClose_time[2] == (date[7] - '0') &&
-          settings.mClose_time[3] == (date[6] - '0') &&
-          (date[12] - '0') == 0)
+      if (settings.mClose_time[0] == (date[15] - '0') &&
+          settings.mClose_time[1] == (date[14] - '0') &&
+          settings.mClose_time[2] == (date[12] - '0') &&
+          settings.mClose_time[3] == (date[11] - '0') &&
+          (date[17] - '0') == 0)
       {
         if (digitalRead(HV_ENABLE) == LOW)
         {
@@ -278,22 +278,22 @@ void loop()
     switch (work_status)
     {
     case DISP_MIN_SEC:
-      fadein_num[3] = date[9] - '0';
-      fadein_num[2] = date[10] - '0';
-      fadein_num[1] = date[12] - '0';
-      fadein_num[0] = date[13] - '0';
+      fadein_num[3] = date[14] - '0';
+      fadein_num[2] = date[15] - '0';
+      fadein_num[1] = date[17] - '0';
+      fadein_num[0] = date[18] - '0';
       break;
     case DISP_HOUR_MIN:
-      fadein_num[3] = date[6] - '0';
-      fadein_num[2] = date[7] - '0';
-      fadein_num[1] = date[9] - '0';
-      fadein_num[0] = date[10] - '0';
+      fadein_num[3] = date[11] - '0';
+      fadein_num[2] = date[12] - '0';
+      fadein_num[1] = date[14] - '0';
+      fadein_num[0] = date[15] - '0';
       break;
     case DISP_MONTH:
-      fadein_num[3] = date[0] - '0';
-      fadein_num[2] = date[1] - '0';
-      fadein_num[1] = date[3] - '0';
-      fadein_num[0] = date[4] - '0';
+      fadein_num[3] = date[5] - '0';
+      fadein_num[2] = date[6] - '0';
+      fadein_num[1] = date[8] - '0';
+      fadein_num[0] = date[9] - '0';
       humidity_count++;
       if (humidity_count == 10) // 持续显示10秒后返回显示时间, 借用humidity_count变量
         work_status = DISP_HOUR_MIN;
@@ -356,7 +356,7 @@ void loop()
     displayStatus_Flag = 0;
 
     // 分钟数字被5整除调用一次解毒
-    if (((date[10] - '0') + 1) % 5 == 0 && (date[12] - '0') == 5 && (date[13] - '0') == 9 &&
+    if (((date[15] - '0') + 1) % 5 == 0 && (date[17] - '0') == 5 && (date[18] - '0') == 9 &&
         (work_status == DISP_HOUR_MIN || work_status == DISP_MIN_SEC))
       startDP(1);
   }
@@ -763,13 +763,16 @@ void flash_led()
 
 void updateRTC()
 {
-  do
+  uint8_t s = 0;
+  while (!timeClient.forceUpdate())
   {
-    timeClient.forceUpdate();
-    DateTime dt(timeClient.getEpochTime());
-    rtc.adjust(dt);
-    delay(1000);
-  } while (rtc.now().year() == 2006); // NTP更新时间时，不明原因导致更新结果为2006-2-6 14：28,检查更新结果
+    delay(2000);
+    s++;
+    if (s > 10)
+      return;
+  }
+  DateTime dt(timeClient.getEpochTime());
+  rtc.adjust(dt);
 
   settings.putLastUpdate(timeClient.getEpochTime());
   settings.putWorkingTime(working_time);
